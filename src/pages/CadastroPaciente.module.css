@@ -1,0 +1,60 @@
+/* Reset básico */
+body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background-color: #f8f8f8;
+}
+
+/* Estilo do componente CadastroPaciente */
+.cadastro {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+/* Estilo do cabeçalho */
+.cadastro-header {
+    background-color: #AB2222;
+    color: #D7D7D7;
+    text-align: center;
+    padding: 15px;
+    width: 100%;
+}
+
+/* Estilo do formulário */
+.form {
+
+    background-color: #FFFFFF;
+    border-radius: 15px;
+    padding: 20px;
+    width: 300px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
+
+.label {
+    display: block;
+    margin-bottom: 8px;
+    color: #AB2222;
+}
+
+.input {
+    width: 100%;
+    padding: 10px;
+    margin-bottom: 15px;
+    border: 1px solid #AB2222;
+    border-radius: 5px;
+    box-sizing: border-box;
+}
+
+.button {
+    background-color: #AB2222;
+    color: #FFFFFF;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+}
+
+.button:hover {
+    background-color: #871616;
+}

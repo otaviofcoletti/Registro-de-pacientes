@@ -1,0 +1,26 @@
+/* Button.module.css */
+
+/* Button.module.css */
+
+.button {
+    cursor: pointer;
+    background-color: var(--vinho);
+    color: var(--gray-100);
+    border-radius: 10px;
+    border: 0;
+    padding: 2rem ;
+    margin: 1rem;
+    transition: background-color 0.3s ease; 
+    font-size: 2rem;
+    min-width: 30rem;
+  }
+  
+  .button:hover {
+    background-color: var(--light-vinho);
+     /* Use a função lighten para tornar a cor mais clara */
+  }
+
+  /* Fazer uma maracutaia para que os outros botoes tenham outros tamanhos mínimos*/
+  
+
+  

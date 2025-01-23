@@ -1,0 +1,10 @@
+/* App.module.css */
+
+  
+.buttonContainer {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-top: 10rem; /* Espaçamento entre o Header e os botões */
+  }
+  

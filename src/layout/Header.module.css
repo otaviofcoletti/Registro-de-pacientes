@@ -1,0 +1,33 @@
+.header {
+    background: var(--vinho);
+    display: flex;
+    align-items: center;
+    justify-content: space-between; /* Garante espaço entre os botões e a logo */
+    padding: 1rem 2rem; /* Ajuste conforme necessário */
+    color: var(--gray-300);
+    font-size: 1.5rem;
+  }
+  
+  .logo {
+    text-align: center;
+    flex-grow: 1; /* Faz a logo ocupar o espaço central */
+    font-size: 1.5rem;
+    color: var(--gray-300);
+  }
+  
+  .navButton {
+    background: none;
+    border: none;
+    color: var(--gray-300);
+    font-size: 1rem;
+    cursor: pointer;
+    padding: 0.5rem 1rem;
+    transition: color 0.3s, background 0.3s;
+  }
+  
+  .navButton:hover {
+    color: var(--vinho);
+    background: var(--gray-300);
+    border-radius: 5px;
+  }
+  

@@ -1,0 +1,49 @@
+/* Footer.module.css */
+.footer {
+    background-color: var(--gray-900);
+    color: var(--white);
+    
+    text-align: center;
+    position: fixed;
+    left: 0;
+    bottom: 0;
+    width: 100%;
+    padding: 1%;
+  }
+  
+  .content {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  p {
+    margin: 10px 0;
+    font-size: 0.9rem;
+  }
+  
+  .links {
+    list-style: none;
+    display: flex;
+    gap: 15px;
+    padding: 0;
+    margin: 10px 0 0;
+  }
+  
+  .links li {
+    display: inline;
+  }
+  
+  .links a {
+    color: var(--light-vinho);
+    text-decoration: none;
+    font-size: 0.9rem;
+    transition: color 0.3s;
+  }
+  
+  .links a:hover {
+    color: var(--vinho);
+  }
+  

@@ -1,0 +1,64 @@
+.container {
+    padding: 2rem;
+    max-width: 800px;
+    margin: 0 auto;
+    background: var(--gray-100);
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  }
+  
+  .title {
+    font-size: 2rem;
+    color: var(--vinho);
+    text-align: center;
+    margin-bottom: 1.5rem;
+  }
+  
+  .searchBar {
+    width: 100%;
+    padding: 0.8rem;
+    font-size: 1rem;
+    border: 1px solid var(--gray-300);
+    border-radius: 4px;
+    margin-bottom: 1rem;
+    transition: border-color 0.3s;
+  }
+  
+  .searchBar:focus {
+    outline: none;
+    border-color: var(--light-vinho);
+  }
+  
+  .list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+  
+  .listItem {
+    display: flex;
+    justify-content: space-between;
+    padding: 1rem;
+    border: 1px solid var(--gray-300);
+    border-radius: 4px;
+    background: var(--white);
+    margin-bottom: 0.5rem;
+    transition: background 0.3s, transform 0.2s;
+  }
+  
+  .listItem:hover {
+    background: var(--light-vinho);
+    transform: scale(1.02);
+    color: var(--white);
+  }
+  
+  .name {
+    font-weight: bold;
+    font-size: 1.1rem;
+  }
+  
+  .phone {
+    color: var(--gray-600);
+    font-size: 1rem;
+  }
+  
