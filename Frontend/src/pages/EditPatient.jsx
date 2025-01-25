@@ -1,7 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import styles from './CadastroPaciente.module.css';
 
-const CadastroPaciente = () => {
+const EditPatient = () => {
+    const { cpf } = useParams();
+    const navigate = useNavigate();
+    const [patient, setPatient] = useState(null);
     const [form, setForm] = useState({
         cpf: '',
         nome: '',
@@ -10,6 +14,32 @@ const CadastroPaciente = () => {
         endereco: '',
         convenio: ''
     });
+
+    useEffect(() => {
+        const fetchPatientDetails = async () => {
+            try {
+                const response = await fetch(`http://127.0.0.1:5000/paciente/${cpf}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    setPatient(data);
+                    setForm({
+                        cpf: data.cpf,
+                        nome: data.name,
+                        telefone: data.phone,
+                        dataNascimento: new Date(data.birthdate).toISOString().split('T')[0] ,
+                        endereco: data.address,
+                        convenio: data.convenio
+                    });
+                } else {
+                    console.error('Erro ao buscar os dados do paciente.');
+                }
+            } catch (error) {
+                console.error('Erro:', error);
+            }
+        };
+
+        fetchPatientDetails();
+    }, [cpf]);
 
     const handleChange = (e) => {
         const { name, value } = e.target;
@@ -20,8 +50,8 @@ const CadastroPaciente = () => {
         e.preventDefault();
 
         try {
-            const response = await fetch('http://localhost:5000/pacientes', {
-                method: 'POST',
+            const response = await fetch(`http://localhost:5000/pacientes/${cpf}`, {
+                method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
                 },
@@ -29,25 +59,21 @@ const CadastroPaciente = () => {
             });
 
             if (response.ok) {
-                alert('Paciente cadastrado com sucesso!');
-                setForm({
-                    cpf: '',
-                    nome: '',
-                    telefone: '',
-                    dataNascimento: '',
-                    endereco: '',
-                    convenio: ''
-                });
+                alert('Dados atualizados com sucesso!');
+                navigate(`/ficha/${cpf}`);
             } else {
-                alert('Erro ao cadastrar paciente.');
+                alert('Erro ao atualizar dados.');
             }
         } catch (error) {
             console.error('Erro ao enviar os dados:', error);
         }
     };
 
+    if (!patient) return <p>Carregando...</p>;
+
     return (
         <div className={styles.cadastro}>
+            <h1 className={styles.title}>Editar Dados do Paciente</h1>
             <form className={styles.form} onSubmit={handleSubmit}>
                 <label className={styles.label} htmlFor="cpf">CPF:</label>
                 <input
@@ -58,6 +84,7 @@ const CadastroPaciente = () => {
                     value={form.cpf}
                     onChange={handleChange}
                     required
+                    disabled
                 />
 
                 <label className={styles.label} htmlFor="nome">Nome:</label>
@@ -111,10 +138,10 @@ const CadastroPaciente = () => {
                     onChange={handleChange}
                 />
 
-                <button className={styles.button} type="submit">Cadastrar Paciente</button>
+                <button className={styles.button} type="submit">Salvar Alterações</button>
             </form>
         </div>
     );
 };
 
-export default CadastroPaciente;
+export default EditPatient;

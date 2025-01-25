@@ -1,31 +1,45 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import styles from './PatientList.module.css';
 
-// Exemplo de pacientes cadastrados
-const patients = [
-  { id: 1, name: 'Ana Silva', phone: '(11) 1234-5678', age: 29, address: 'Rua A, 123', notes: 'Paciente com histórico de alergias.' },
-  { id: 2, name: 'Carlos Oliveira', phone: '(21) 8765-4321', age: 34, address: 'Avenida B, 456', notes: 'Consulta de rotina.' },
-  { id: 3, name: 'Maria Santos', phone: '(31) 9999-8888', age: 42, address: 'Praça C, 789', notes: 'Tratamento dentário em andamento.' },
-];
-
 export function PatientList() {
   const [search, setSearch] = useState('');
-  const [filteredPatients, setFilteredPatients] = useState(patients);
+  const [patients, setPatients] = useState([]);
+  const [filteredPatients, setFilteredPatients] = useState([]);
   const navigate = useNavigate();
+
+  // Fetch patients from backend
+  useEffect(() => {
+    const fetchPatients = async () => {
+      try {
+        const response = await fetch('http://127.0.0.1:5000/pacientes');
+        if (response.ok) {
+          const data = await response.json();
+          console.log(data);
+          setPatients(data);
+          setFilteredPatients(data);
+        } else {
+          console.error('Failed to fetch patients');
+        }
+      } catch (error) {
+        console.error('Error:', error);
+      }
+    };
+    fetchPatients();
+  }, []);
 
   const handleSearch = (e) => {
     const value = e.target.value.toLowerCase();
     setSearch(value);
 
     const suggestions = patients.filter((patient) =>
-      patient.name.toLowerCase().includes(value)
+      patient.nome.toLowerCase().includes(value)
     );
     setFilteredPatients(suggestions);
   };
 
-  const handlePatientClick = (id) => {
-    navigate(`/ficha/${id}`); // Redireciona para a página da ficha do paciente
+  const handlePatientClick = (cpf) => {
+    navigate(`/ficha/${cpf}`); // Redireciona para a página da ficha do paciente
   };
 
   return (
@@ -41,12 +55,12 @@ export function PatientList() {
       <ul className={styles.list}>
         {filteredPatients.map((patient) => (
           <li
-            key={patient.id}
+            key={patient.cpf}
             className={styles.listItem}
-            onClick={() => handlePatientClick(patient.id)}
+            onClick={() => handlePatientClick(patient.cpf)}
           >
-            <span className={styles.name}>{patient.name}</span>
-            <span className={styles.phone}>{patient.phone}</span>
+            <span className={styles.name}>{patient.nome}</span>
+            <span className={styles.phone}>{patient.telefone}</span>
           </li>
         ))}
       </ul>

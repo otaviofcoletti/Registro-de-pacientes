@@ -1,57 +1,80 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import styles from './PatientDetails.module.css';
 
-const patients = [
-  { id: 1, name: 'Ana Silva', phone: '(11) 1234-5678', age: 29, address: 'Rua A, 123', notes: 'Paciente com histórico de alergias.' },
-  { id: 2, name: 'Carlos Oliveira', phone: '(21) 8765-4321', age: 34, address: 'Avenida B, 456', notes: 'Consulta de rotina.' },
-  { id: 3, name: 'Maria Santos', phone: '(31) 9999-8888', age: 42, address: 'Praça C, 789', notes: 'Tratamento dentário em andamento.' },
-];
-
-const toothOptions = Array.from({ length: 32 }, (_, i) => `Dente ${i + 1}`); // Gera uma lista de dentes de 1 a 32
-
 export function PatientDetails() {
-  const { id } = useParams(); // Obtém o ID do paciente da URL
+  const { cpf } = useParams();
   const navigate = useNavigate();
-  const patient = patients.find((p) => p.id === parseInt(id));
-
-  const [annotations, setAnnotations] = useState([]);
+  const [patient, setPatient] = useState(null);
   const [form, setForm] = useState({
-    date: new Date().toISOString().split('T')[0], // Data no formato YYYY-MM-DD
+    date: new Date().toISOString().split('T')[0],
     tooth: '',
     observation: '',
   });
+  const [annotations, setAnnotations] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const [isEditing, setIsEditing] = useState(false);
-
-  if (!patient) {
-    return <p>Paciente não encontrado.</p>;
-  }
+  // Fetch patient details
+  useEffect(() => {
+    const fetchPatientDetails = async () => {
+      try {
+        const response = await fetch(`http://127.0.0.1:5000/paciente/${cpf}`);
+        if (response.ok) {
+          const data = await response.json();
+          setPatient(data);
+          setAnnotations(data.treatments);
+        } else {
+          console.error('Erro ao buscar detalhes do paciente.');
+        }
+      } catch (error) {
+        console.error('Erro:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchPatientDetails();
+  }, [cpf]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleAddAnnotation = () => {
+  const handleAddAnnotation = async () => {
     if (!form.tooth || !form.observation) {
-      alert('Por favor, preencha todos os campos antes de adicionar uma anotação.');
+      alert('Por favor, preencha todos os campos.');
       return;
     }
+    try {
+      const response = await fetch(`http://127.0.0.1:5000/paciente/${cpf}/anotacoes`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form),
+      });
+      if (response.ok) {
+        setAnnotations((prev) => [{ ...form, note: form.observation }, ...prev]);
+        setForm({
+          date: new Date().toISOString().split('T')[0],
+          tooth: '',
+          observation: '',
+        });
+      } else {
+        console.error('Erro ao adicionar anotação.');
+      }
+    } catch (error) {
+      console.error('Erro:', error);
+    }
+  };
 
-    setAnnotations((prev) => [
-      { ...form, id: Date.now() }, // Adiciona a anotação no topo
-      ...prev,
-    ]);
+  if (loading) return <p>Carregando...</p>;
+  if (!patient) return <p>Paciente não encontrado.</p>;
 
-    // Reseta o formulário
-    setForm({
-      date: new Date().toISOString().split('T')[0],
-      tooth: '',
-      observation: '',
-    });
-
-    setIsEditing(false);
+  // Function to format date to dd/mm/yyyy
+  const formatDate = (dateString) => {
+    const date = new Date(dateString);
+    const isoString = date.toISOString().split('T')[0]; // "2002-12-18"
+    const [year, month, day] = isoString.split('-');
+    return `${day}/${month}/${year}`;
   };
 
   return (
@@ -60,14 +83,14 @@ export function PatientDetails() {
       <div className={styles.info}>
         <p><strong>Nome:</strong> {patient.name}</p>
         <p><strong>Telefone:</strong> {patient.phone}</p>
-        <p><strong>Idade:</strong> {patient.age}</p>
+        <p><strong>Data de Nascimento:</strong> {formatDate(patient.birthdate)}</p>
         <p><strong>Endereço:</strong> {patient.address}</p>
-        <p><strong>Notas:</strong> {patient.notes}</p>
+        <p><strong>Convênio:</strong> {patient.convenio}</p>
       </div>
+      <button className={styles.editButton} onClick={() => navigate(`/editar-paciente/${cpf}`)}>Editar Ficha</button>
 
       <div className={styles.annotations}>
         <h2 className={styles.subtitle}>Anotações Dentárias</h2>
-
         <table className={styles.annotationTable}>
           <thead>
             <tr className={styles.tableHeader}>
@@ -84,19 +107,13 @@ export function PatientDetails() {
                   name="date"
                   value={form.date}
                   onChange={handleInputChange}
-                  disabled={isEditing}
                 />
               </td>
               <td>
-                <select
-                  name="tooth"
-                  value={form.tooth}
-                  onChange={handleInputChange}
-                  disabled={isEditing}
-                >
+                <select name="tooth" value={form.tooth} onChange={handleInputChange}>
                   <option value="">Selecione o dente</option>
-                  {toothOptions.map((tooth) => (
-                    <option key={tooth} value={tooth}>{tooth}</option>
+                  {Array.from({ length: 32 }, (_, i) => (
+                    <option key={i} value={i + 1}>Dente {i + 1}</option>
                   ))}
                 </select>
               </td>
@@ -106,29 +123,24 @@ export function PatientDetails() {
                     name="observation"
                     value={form.observation}
                     onChange={handleInputChange}
-                    disabled={isEditing}
                     placeholder="Adicionar observação..."
-                  ></textarea>
-                  <button onClick={handleAddAnnotation} className={styles.addButton}>
-                    +
-                  </button>
+                  />
+                  <button className={styles.addButton} onClick={handleAddAnnotation}>+</button>
                 </div>
               </td>
             </tr>
-            {annotations.map((annotation) => (
-              <tr key={annotation.id} className={styles.annotationRow}>
-                <td>{annotation.date}</td>
-                <td>{annotation.tooth}</td>
-                <td>{annotation.observation}</td>
+            {annotations.map((a, idx) => (
+              <tr key={idx} className={styles.annotationRow}>
+                <td>{formatDate(a.date)}</td>
+                <td>{a.tooth}</td>
+                <td>{a.note}</td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
 
-      <button className={styles.backButton} onClick={() => navigate('/pacientes')}>
-        Voltar para lista
-      </button>
+      <button className={styles.backButton} onClick={() => navigate('/pacientes')}>Voltar para Lista</button>
     </div>
   );
 }

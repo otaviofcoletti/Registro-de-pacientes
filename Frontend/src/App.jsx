@@ -8,6 +8,7 @@ import Footer from "./layout/Footer";
 import PatientList from "./pages/PatientList";
 import PatientDetails from "./pages/PatientDetails";
 import Paint from "./pages/Paint";
+import EditPatient from "./pages/EditPatient";
 function App() {
 
   return (
@@ -18,7 +19,8 @@ function App() {
             <Route exact path="/" element={<Home />}/>
             <Route path="/cadastro" element={<CadastroPaciente />}/>
             <Route path="/pacientes" element={<PatientList />} />
-            <Route path="/ficha/:id" element={<PatientDetails />} />
+            <Route path="/ficha/:cpf" element={<PatientDetails />} />
+            <Route path="/editar-paciente/:cpf" element={<EditPatient />} />
             <Route path="/paint" element={<Paint />} />
           </Routes>
         <Footer/>
