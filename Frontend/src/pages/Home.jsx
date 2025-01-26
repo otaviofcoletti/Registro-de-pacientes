@@ -16,12 +16,10 @@ function Home() {
   };
 
   return (
-    <div>
       <div className={styles.buttonContainer}>
         <Button text="Adicionar novo" onClick={handleAddNew} />
         <Button text="Buscar paciente" onClick={handleSearch} />
       </div>
-    </div>
 
   )
 }

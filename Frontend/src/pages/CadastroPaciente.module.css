@@ -10,6 +10,7 @@ body {
     display: flex;
     flex-direction: column;
     align-items: center;
+    margin-top: 5rem;
 }
 
 /* Estilo do cabeçalho */
@@ -26,8 +27,8 @@ body {
 
     background-color: #FFFFFF;
     border-radius: 15px;
-    padding: 20px;
-    width: 300px;
+    padding: 1rem;
+    width: 25rem;
     box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
 }
 
@@ -35,15 +36,19 @@ body {
     display: block;
     margin-bottom: 8px;
     color: #AB2222;
+    font-weight: bold;
 }
 
 .input {
     width: 100%;
-    padding: 10px;
+    padding: 1rem;
     margin-bottom: 15px;
     border: 1px solid #AB2222;
     border-radius: 5px;
     box-sizing: border-box;
+    font-size: 1.05rem;
+    font-weight: bold;
+
 }
 
 .button {

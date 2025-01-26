@@ -1,11 +1,16 @@
 .container {
+    min-height: 100%;    
     padding: 2rem;
     max-width: 800px;
-    margin: 0 auto;
+    margin-top: 8%;
+    margin-left: auto;
+    margin-right: auto;
     background: var(--gray-100);
     border-radius: 8px;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
   }
+
+
   
   .title {
     font-size: 2rem;
@@ -32,7 +37,7 @@
   .list {
     list-style: none;
     padding: 0;
-    margin: 0;
+    margin: 0 0 2rem 0; /* Adiciona um espaço na parte inferior da lista */
   }
   
   .listItem {

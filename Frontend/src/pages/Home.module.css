@@ -5,6 +5,8 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    margin-top: 10rem; /* Espaçamento entre o Header e os botões */
+    /*margin: 10rem;  Espaçamento entre o Header e os botões */
+    margin-top: 15rem;
+    margin-bottom: 18rem;
   }
   

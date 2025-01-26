@@ -15,7 +15,6 @@ export function PatientList() {
         const response = await fetch('http://127.0.0.1:5000/pacientes');
         if (response.ok) {
           const data = await response.json();
-          console.log(data);
           setPatients(data);
           setFilteredPatients(data);
         } else {
@@ -65,6 +64,7 @@ export function PatientList() {
         ))}
       </ul>
     </div>
+
   );
 }
 

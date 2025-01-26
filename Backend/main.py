@@ -3,6 +3,9 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 import psycopg2
 
+from flask import jsonify
+import psycopg2.extras
+
 app = Flask(__name__)
 CORS(app)  # Permite requisições do front-end
 
@@ -136,8 +139,7 @@ def delete_paciente(cpf):
         print(e)
         return jsonify({'error': 'Erro ao deletar paciente.'}), 500
     
-from flask import jsonify
-import psycopg2.extras
+
 
 @app.route('/paciente/<cpf>', methods=['GET'])
 def get_patient_details(cpf):
@@ -156,14 +158,13 @@ def get_patient_details(cpf):
 
         # Busca as anotações dentárias relacionadas ao paciente
         treatments_query = """
-            SELECT numero_dente, data, anotacao
+            SELECT numero_dente, data, anotacao, epoch_criacao
             FROM informacao_tratamentos
             WHERE id_paciente = %s
-            ORDER BY epoch_criacao DESC
+            ORDER BY data DESC
         """
         cursor.execute(treatments_query, (cpf,))
         treatments = cursor.fetchall() or []
-
         # Monta a resposta
         patient_details = {
             'cpf': patient['cpf'],
@@ -176,13 +177,13 @@ def get_patient_details(cpf):
                 {
                     'tooth': row['numero_dente'],
                     'date': row['data'],
-                    'note': row['anotacao']
+                    'note': row['anotacao'],
+                    'epoch': row['epoch_criacao']
                 }
                 for row in treatments
             ]
         }
 
-        print(patient_details)
 
         return jsonify(patient_details), 200
     except Exception as e:
@@ -200,7 +201,8 @@ def add_annotation(cpf):
         data = request.json
         numero_dente = data.get('tooth')
         data_tratamento = data.get('date')
-        anotacao = data.get('observation')
+        anotacao = data.get('note')
+        epoch_criacao = data.get('epoch')
 
         if not numero_dente or not data_tratamento or not anotacao:
             return jsonify({'error': 'Campos obrigatórios não preenchidos.'}), 400
@@ -215,7 +217,6 @@ def add_annotation(cpf):
             return jsonify({'error': 'Paciente não encontrado.'}), 404
 
         # Insere a nova anotação
-        epoch_criacao = int(time.time())
         insert_query = """
             INSERT INTO informacao_tratamentos (id_paciente, epoch_criacao, numero_dente, data, anotacao)
             VALUES (%s, %s, %s, %s, %s)
@@ -228,6 +229,66 @@ def add_annotation(cpf):
     except Exception as e:
         print(e)
         return jsonify({'error': 'Erro ao adicionar anotação.'}), 500
+    
+
+@app.route('/paciente/<cpf>/anotacoes/<int:annotation_id>', methods=['PUT'])
+def update_annotation(cpf, annotation_id):
+    data = request.json
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # Atualiza os campos apropriados na tabela
+        query = """
+            UPDATE informacao_tratamentos
+            SET data = %s, numero_dente = %s, anotacao = %s
+            WHERE id_paciente = %s AND epoch_criacao = %s
+        """
+        
+        # Verifique se todas as chaves necessárias estão presentes no JSON
+        if not all(key in data for key in ['data', 'numero_dente', 'anotacao']):
+            return jsonify({'error': 'Faltam campos obrigatórios no corpo da requisição.'}), 400
+
+        cursor.execute(query, (data['data'], data['numero_dente'], data['anotacao'], cpf, annotation_id))
+        conn.commit()
+        cursor.close()
+        conn.close()
+        return jsonify({'message': 'Anotação atualizada com sucesso!'}), 200
+    except Exception as e:
+        print(e)
+        return jsonify({'error': 'Erro ao atualizar anotação.'}), 500
+
+
+@app.route('/paciente/<cpf>/anotacoes/<int:annotation_id>', methods=['DELETE'])
+def delete_annotation(cpf, annotation_id):
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # Verifica se a anotação existe
+        query_check = """
+            SELECT 1 
+            FROM informacao_tratamentos 
+            WHERE id_paciente = %s AND epoch_criacao = %s
+        """
+        cursor.execute(query_check, (cpf, annotation_id))
+        if not cursor.fetchone():
+            return jsonify({'error': 'Anotação não encontrada.'}), 404
+
+        # Exclui a anotação
+        query_delete = """
+            DELETE FROM informacao_tratamentos 
+            WHERE id_paciente = %s AND epoch_criacao = %s
+        """
+        cursor.execute(query_delete, (cpf, annotation_id))
+        conn.commit()
+
+        cursor.close()
+        conn.close()
+        return jsonify({'message': 'Anotação deletada com sucesso!'}), 200
+    except Exception as e:
+        print(e)
+        return jsonify({'error': 'Erro ao deletar anotação.'}), 500
 
 
 if __name__ == '__main__':

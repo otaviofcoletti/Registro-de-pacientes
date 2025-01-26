@@ -3,6 +3,7 @@ import styles from './Paint.module.css';
 
 const Paint = () => {
   return (
+    <div className={styles.maincontainer}>
     <div className={styles.container}>
       <section className={styles.tools}>
         <div className={styles.row}>
@@ -22,14 +23,14 @@ const Paint = () => {
             </li>
             <li className={styles.option}>
               <input type="checkbox" id="fill-color"/>
-              <label for="fill-color">Fill color</label>
+              <label htmlFor="fill-color">Fill color</label>
             </li>
           </ul>
         </div>
         <div className={styles.row}>
           <label className={styles.title}>Options</label>
           <ul className={styles.options}>
-            <li className={styles.option}>
+            <li className={`${styles.option} ${styles.active}`}>
               <img src="./src/icons/brush.svg" alt="brush Icon" />
               <span>Brush</span>
             </li>
@@ -42,15 +43,27 @@ const Paint = () => {
             </li>
           </ul>
         </div>
-        <div className={styles.row}>
+
+        <div className={`${styles.row} ${styles.colors}`}>
           <label className={styles.title}>Colors</label>
           <ul className={styles.options}>
+            <li className={styles.option}> </li>
+            <li className={styles.option}> </li>
+            <li className={styles.option}> </li>
+            <li className={styles.option}> </li>
             <li className={styles.option}> </li>
             
           </ul>
         </div>
         
+        <div className={styles.row}>
+          <button className={styles.clearcanvas}>Clear Canvas</button>
+          <button className={styles.saveimage}>Save Image</button>  
+        </div>
+        
       </section>
+      <section className={styles.drawingboard}> </section>
+    </div>
     </div>
   );
 };
