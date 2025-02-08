@@ -71,8 +71,99 @@
     margin-top: 10px;
 }
 
+.colors .options{
+    display: flex;
+    justify-content: space-between;
+}
+
+.colors .option{
+    width: 20px;
+    height: 20px;
+    background: red;
+    border-radius: 50%;
+    margin-top: 3px;
+    position: relative;
+}
+
+.colors .option:nth-child(1){
+    background: #fff;
+    border: 1px solid #bfbfbf;
+}
+
+.colors .option:nth-child(2){
+    background: #000;
+}
+
+.colors .option:nth-child(3){
+    background: red;
+}
+
+.colors .option:nth-child(4){
+    background: green;
+}
+
+.colors .option:nth-child(5){
+    background: blue;
+}
+
+
+.colors .option.selected::before{
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 12px;
+    height: 12px;
+    border-radius: inherit;
+    border: 2px solid #fff;
+    background: inherit;
+}
+
+.colors .option:first-child.selected::before{
+    border-color: #ccc;
+}
+
+.option .colorpicker{
+    opacity: 0;
+    cursor: pointer;
+}
+
+.buttons button{
+    width: 100%;
+    color: #fff;
+    border: none;
+    outline: none;
+    padding: 11px 0;
+    font-size: 0.9rem;
+    margin-bottom: 13px;
+    background: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+.buttons .clearcanvas{
+    color: #6C757d;
+    border: 1px solid #6C757d;
+    transition: all 0.3s ease;
+}
+
+.clearcanvas:hover{
+    color: #fff;
+    background: #6C757d;
+}
+
+.buttons .saveimg{
+    border: 1px solid #4A98F7;
+    background: #4A98F7;
+}
 
 
 .drawingboard{
     flex: 1;
+}
+
+drawingboard canvas{
+    width: 100%;
+    height: 100%;
 }
