@@ -1,0 +1,222 @@
+.maincontainer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  background-color: var(--gray-300);
+}
+
+.container {
+  display: flex;
+  width: 100%;
+  gap: 10px;
+  padding: 10px;
+  max-width: 1050px;
+}
+
+/* tools-board */
+.tools {
+  width: 210px;
+  padding: 15px 22px 0;
+}
+
+.tools .row {
+  margin-bottom: 20px;
+}
+
+/* section */
+.tools,
+.drawingboard {
+  background: white;
+  border-radius: 7px;
+}
+
+.row .options {
+  list-style: none;
+  margin: 10px 0 0 5px;
+}
+
+.row .options .option {
+  display: flex;
+  cursor: pointer;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.option:is(:hover, .active) img {
+  filter: invert(17%) sepia(90%) saturate(3000%) hue-rotate(900deg) brightness(100%) contrast(100%);
+}
+
+.option :where(span, label) {
+  color: #5A6168;
+  padding-left: 10px;
+  cursor: pointer;
+}
+
+.option:is(:hover, .active) :where(span, label) {
+  color: #4A98F7;
+}
+
+.option #fill-color {
+  cursor: pointer;
+  height: 14px;
+  width: 14px;
+}
+
+#fill-color:checked ~ label {
+  color: #4A98F7;
+}
+
+.option #size-slider {
+  width: 100%;
+  height: 5px;
+  margin-top: 10px;
+}
+
+.colors .options {
+  display: flex;
+  justify-content: space-between;
+}
+
+.colors .option {
+  width: 20px;
+  height: 20px;
+  background: red;
+  border-radius: 50%;
+  margin-top: 3px;
+  position: relative;
+}
+
+.colors .option:nth-child(1) {
+  background-color: #fff;
+  border: 1px solid #bfbfbf;
+}
+
+.colors .option:nth-child(2) {
+  background-color: #000;
+}
+
+.colors .option:nth-child(3) {
+  background-color: red;
+}
+
+.colors .option:nth-child(4) {
+  background-color: green;
+}
+
+.colors .option:nth-child(5) {
+  background-color: blue;
+}
+
+.colors .option.selected::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 12px;
+  height: 12px;
+  border-radius: inherit;
+  border: 2px solid #fff;
+  background: inherit;
+}
+
+.colors .option:first-child.selected::before {
+  border-color: #ccc;
+}
+
+.option .colorpicker {
+  opacity: 0;
+  cursor: pointer;
+}
+
+.buttons button {
+  width: 100%;
+  color: #fff;
+  border: none;
+  outline: none;
+  padding: 11px 0;
+  font-size: 0.9rem;
+  margin-bottom: 13px;
+  background: none;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.buttons .clearcanvas {
+  color: #6C757d;
+  border: 1px solid #6C757d;
+  transition: all 0.3s ease;
+}
+
+.clearcanvas:hover {
+  color: #fff;
+  background: #6C757d;
+}
+
+.buttons .saveimg {
+  border: 1px solid #4A98F7;
+  background: #4A98F7;
+}
+
+/* Botão de alternância Editar/Salvar com z-index para garantir visibilidade */
+.buttons .toggleEditSave {
+    border: 1px solid #4A98F7;
+    background: #4A98F7;
+}
+
+/* Canvas com dimensões fixas (definidas via JS) */
+.drawingboard {
+  flex: 1;
+}
+
+.drawingboard canvas {
+  width: 800px;  /* Confirma as dimensões fixas */
+  height: 600px;
+}
+
+/* Controles de navegação abaixo do canvas */
+.controlsBelow {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.navButton {
+  background: rgba(0, 0, 0, 0.5);
+  border: none;
+  color: #fff;
+  padding: 8px 12px;
+  font-size: 1.2rem;
+  cursor: pointer;
+}
+
+.timestamp {
+  background: rgba(0, 0, 0, 0.5);
+  color: #fff;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.9rem;
+}
+
+.buttons .undoButton {
+    width: 100%;
+    color: #fff;
+    background: #4A98F7;
+    border: 1px solid #4A98F7;
+    outline: none;
+    padding: 11px 0;
+    font-size: 0.9rem;
+    margin-bottom: 13px;
+    border-radius: 5px;
+    cursor: pointer;
+  }
+  
+.buttons .undoButton:disabled {
+    background: #ccc;
+    border-color: #ccc;
+    cursor: not-allowed;
+  }
+  

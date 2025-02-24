@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import styles from './PatientDetails.module.css';
+import Paint from '../components/PaintComponent.jsx'; // ajuste o caminho conforme necessário
+
 
 export function PatientDetails() {
   const { cpf } = useParams();
@@ -166,7 +168,7 @@ export function PatientDetails() {
         <p><strong>Convênio:</strong> {patient.convenio}</p>
       </div>
       <button className={styles.backButton} onClick={() => navigate(`/editar-paciente/${cpf}`)}>Editar Ficha</button>
-
+      <Paint cpf={cpf}/>
       <div className={styles.annotations}>
         <h2 className={styles.subtitle}>Anotações Dentárias</h2>
         <table className={styles.annotationTable}>

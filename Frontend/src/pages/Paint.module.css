@@ -86,24 +86,24 @@
 }
 
 .colors .option:nth-child(1){
-    background: #fff;
+    background-color: #fff;
     border: 1px solid #bfbfbf;
 }
 
 .colors .option:nth-child(2){
-    background: #000;
+    background-color: #000;
 }
 
 .colors .option:nth-child(3){
-    background: red;
+    background-color: red;
 }
 
 .colors .option:nth-child(4){
-    background: green;
+    background-color: green;
 }
 
 .colors .option:nth-child(5){
-    background: blue;
+    background-color: blue;
 }
 
 
@@ -163,7 +163,10 @@
     flex: 1;
 }
 
-drawingboard canvas{
+.drawingboard canvas{
+    
+    /*touch-action: none;  disable touch events  MUDEI AQUI*/ 
     width: 100%;
     height: 100%;
+
 }
