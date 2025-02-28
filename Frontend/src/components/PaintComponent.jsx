@@ -29,10 +29,22 @@ const Paint = ({ cpf }) => {
   // Carrega imagens do localStorage usando o cpf
   useEffect(() => {
     if (cpf) {
-      const data = localStorage.getItem(`paint_${cpf}`);
-      if (data) {
+      // Recupera imagens do backend
+      fetch(`http://localhost:5000/get_images?cpf=${cpf}`)
+        .then(response => response.json())
+        .then(data => {
+          if (data && data.images) {
+            setSavedImages(data.images);
+            setCurrentImageIndex(data.images.length - 1);
+          }
+        })
+        .catch(err => console.error("Erro ao carregar imagens do backend:", err));
+
+      // Recupera imagens do localStorage (opcional, como fallback)
+      const localData = localStorage.getItem(`paint_${cpf}`);
+      if (localData) {
         try {
-          const parsedImages = JSON.parse(data);
+          const parsedImages = JSON.parse(localData);
           setSavedImages(parsedImages);
           setCurrentImageIndex(parsedImages.length - 1);
         } catch (e) {
@@ -259,6 +271,22 @@ const Paint = ({ cpf }) => {
       localStorage.setItem(`paint_${cpf}`, JSON.stringify(updatedImages));
       setCurrentImageIndex(updatedImages.length - 1);
       setDrawingEnabled(false);
+
+      // Chamada à rota do backend para salvar a imagem
+      fetch('http://localhost:5000/save_image', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ cpf, image: imageData, timestamp })
+      })
+      .then(response => response.json())
+      .then(data => {
+        console.log("Imagem salva no backend com sucesso:", data);
+      })
+      .catch(error => {
+        console.error("Erro ao salvar imagem no backend:", error);
+      });
     } else {
       if (savedImages.length > 0) {
         setBackgroundImage(savedImages[currentImageIndex].image);

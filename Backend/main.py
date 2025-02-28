@@ -6,6 +6,12 @@ import psycopg2
 from flask import jsonify
 import psycopg2.extras
 
+
+import os
+import base64
+from datetime import datetime
+
+
 app = Flask(__name__)
 CORS(app)  # Permite requisições do front-end
 
@@ -289,6 +295,91 @@ def delete_annotation(cpf, annotation_id):
     except Exception as e:
         print(e)
         return jsonify({'error': 'Erro ao deletar anotação.'}), 500
+    
+
+
+BASE_FOLDER = 'patient_images'
+
+# Garante que a pasta base exista
+if not os.path.exists(BASE_FOLDER):
+    os.makedirs(BASE_FOLDER)
+
+@app.route('/save_image', methods=['POST'])
+def save_image():
+    data = request.get_json()
+    cpf = data.get('cpf')
+    image_data = data.get('image')
+    # Caso não seja fornecido, usa o timestamp atual
+    timestamp = data.get('timestamp', datetime.utcnow().isoformat())
+
+    if not cpf or not image_data:
+        return jsonify({'error': 'cpf e image são obrigatórios'}), 400
+
+    # Cria uma pasta para o paciente, se não existir
+    patient_folder = os.path.join(BASE_FOLDER, cpf)
+    if not os.path.exists(patient_folder):
+        os.makedirs(patient_folder)
+
+    # Remove o cabeçalho (data:image/png;base64,) se existir
+    if "," in image_data:
+        header, encoded = image_data.split(',', 1)
+    else:
+        encoded = image_data
+
+    image_bytes = base64.b64decode(encoded)
+    
+    # Salva a imagem com o timestamp como nome de arquivo
+    # Substitui os ":" por "-" para evitar problemas no nome do arquivo
+    safe_timestamp = timestamp.replace(":", "-")
+    filename = f"{safe_timestamp}.png"
+    filepath = os.path.join(patient_folder, filename)
+    with open(filepath, "wb") as f:
+        f.write(image_bytes)
+    
+    # Aqui você pode inserir no banco de dados as informações da imagem, se necessário
+    # Exemplo: db.insert_image(cpf=cpf, filename=filename, timestamp=timestamp)
+
+    return jsonify({'message': 'Imagem salva com sucesso', 'filename': filename}), 200
+
+@app.route('/get_images', methods=['GET'])
+def get_images():
+    cpf = request.args.get('cpf')
+    if not cpf:
+        return jsonify({'error': 'cpf é obrigatório'}), 400
+
+    patient_folder = os.path.join(BASE_FOLDER, cpf)
+    images = []
+    if os.path.exists(patient_folder):
+        for filename in os.listdir(patient_folder):
+            filepath = os.path.join(patient_folder, filename)
+            with open(filepath, "rb") as f:
+                image_bytes = f.read()
+                encoded = base64.b64encode(image_bytes).decode('utf-8')
+                data_url = f"data:image/png;base64,{encoded}"
+                
+                # Processa o nome do arquivo para extrair o timestamp e formatá-lo de forma amigável
+                # O nome esperado é algo como "2025-02-28T16-26-29.545Z.png"
+                raw = filename.replace(".png", "")
+                try:
+                    # Separa a parte da data e do tempo
+                    date_part, time_part = raw.split("T")
+                    # Substitui somente os dois primeiros hífens da parte do tempo por dois pontos
+                    time_part_fixed = time_part.replace("-", ":", 2)
+                    iso_timestamp = f"{date_part}T{time_part_fixed}"
+                    # Ajusta para um formato ISO compatível com datetime.fromisoformat (substituindo 'Z' por '+00:00')
+                    iso_timestamp_fixed = iso_timestamp.replace("Z", "+00:00")
+                    dt = datetime.fromisoformat(iso_timestamp_fixed)
+                    # Formata a data de forma amigável
+                    friendly_timestamp = dt.strftime("%d/%m/%Y %H:%M:%S")
+                except Exception as e:
+                    # Em caso de erro, retorna o valor bruto
+                    friendly_timestamp = raw
+
+                images.append({
+                    'image': data_url,
+                    'timestamp': friendly_timestamp
+                })
+    return jsonify({'images': images}), 200
 
 
 if __name__ == '__main__':
