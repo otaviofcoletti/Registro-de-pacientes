@@ -133,16 +133,21 @@ const Paint = ({ cpf }) => {
     }
   }, [drawingEnabled, savedImages, currentImageIndex]);
   
-  // Ao entrar em modo edição, inicializa o undoStack com o estado atual do canvas
-  useEffect(() => {
-    if (drawingEnabled) {
-      const canvas = canvasRef.current;
-      const initialSnapshot = ctxRef.current.getImageData(0, 0, canvas.width, canvas.height);
-      setUndoStack([initialSnapshot]);
-    } else {
-      setUndoStack([]);
-    }
-  }, [drawingEnabled]);
+  // // Ao entrar em modo edição, inicializa o undoStack com o estado atual do canvas
+  // useEffect(() => {
+  //   if (drawingEnabled) {
+  //     const canvas = canvasRef.current;
+  //     const initialSnapshot = ctxRef.current.getImageData(0, 0, canvas.width, canvas.height);
+  //     console.log("Base snapshot:", initialSnapshot);
+  //     console.log("Data array:", initialSnapshot.data); // Exibe o array de pixels
+  //     const data = initialSnapshot.data; // É um Uint8ClampedArray
+  //     const allZeros = Array.from(data).every(value => value === 0);
+  //     console.log("INICIAL Todos os valores são 0?", allZeros);
+  //     setUndoStack([initialSnapshot]);
+  //   } else {
+  //     setUndoStack([]);
+  //   }
+  // }, [drawingEnabled]);
   
   // Função para tratar mudança de background via upload
   const handleBackgroundChange = (e) => {
@@ -229,6 +234,12 @@ const Paint = ({ cpf }) => {
     ctxRef.current.closePath();
     const canvas = canvasRef.current;
     const snapshotData = ctxRef.current.getImageData(0, 0, canvas.width, canvas.height);
+    console.log("Base snapshot:",snapshotData);
+    console.log("Data array:", snapshotData.data); // Exibe o array de pixels
+    const data = snapshotData.data; // É um Uint8ClampedArray
+    const allZeros = Array.from(data).every(value => value === 0);
+    console.log("Todos os valores são 0?", allZeros);
+
     setUndoStack(prev => [...prev, snapshotData]);
   };
   
@@ -261,25 +272,27 @@ const Paint = ({ cpf }) => {
   // Alterna entre editar e salvar:
   // Em "Salvar", captura o canvas e adiciona a imagem aos salvos;
   // Em "Editar", se houver imagem salva, define-a como fundo e habilita desenho.
-  const handleEditSaveToggle = () => {
-    if (drawingEnabled) {
-      const imageData = canvasRef.current.toDataURL('image/png');
-      const timestamp = new Date().toISOString();
-      const newImage = { image: imageData, timestamp };
-      const updatedImages = [...savedImages, newImage];
-      setSavedImages(updatedImages);
-      localStorage.setItem(`paint_${cpf}`, JSON.stringify(updatedImages));
-      setCurrentImageIndex(updatedImages.length - 1);
-      setDrawingEnabled(false);
+  // Na parte de alternância entre editar e salvar:
+const handleEditSaveToggle = () => {
+  if (drawingEnabled) {
+    // Modo salvar: captura o canvas e envia para o backend, etc.
+    const imageData = canvasRef.current.toDataURL('image/png');
+    const timestamp = new Date().toISOString();
+    const newImage = { image: imageData, timestamp };
+    const updatedImages = [...savedImages, newImage];
+    setSavedImages(updatedImages);
+    localStorage.setItem(`paint_${cpf}`, JSON.stringify(updatedImages));
+    setCurrentImageIndex(updatedImages.length - 1);
+    setDrawingEnabled(false);
 
-      // Chamada à rota do backend para salvar a imagem
-      fetch('http://localhost:5000/save_image', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ cpf, image: imageData, timestamp })
-      })
+    // Chamada à rota do backend para salvar a imagem
+    fetch('http://localhost:5000/save_image', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ cpf, image: imageData, timestamp })
+    })
       .then(response => response.json())
       .then(data => {
         console.log("Imagem salva no backend com sucesso:", data);
@@ -287,13 +300,32 @@ const Paint = ({ cpf }) => {
       .catch(error => {
         console.error("Erro ao salvar imagem no backend:", error);
       });
+  } else {
+    // Modo editar: se houver imagem salva, define o background
+    if (savedImages.length > 0) {
+      // Em vez de apenas setBackgroundImage, vamos carregar a imagem e desenhá-la no canvas.
+      const img = new Image();
+      img.onload = () => {
+        const canvas = canvasRef.current;
+        const ctx = ctxRef.current;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        // Agora que o background foi desenhado, capture essa snapshot como base da undoStack.
+        const baseSnapshot = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        setUndoStack([baseSnapshot]);
+      };
+      // Use a imagem salva como background
+      img.src = savedImages[currentImageIndex].image;
     } else {
-      if (savedImages.length > 0) {
-        setBackgroundImage(savedImages[currentImageIndex].image);
-      }
-      setDrawingEnabled(true);
+      // Se não houver background definido, captura o snapshot atual (pode ser em branco)
+      const canvas = canvasRef.current;
+      const baseSnapshot = ctxRef.current.getImageData(0, 0, canvas.width, canvas.height);
+      setUndoStack([baseSnapshot]);
     }
-  };
+    setDrawingEnabled(true);
+  }
+};
+
   
   // Navegação entre imagens salvas
   const handlePrevious = () => {
