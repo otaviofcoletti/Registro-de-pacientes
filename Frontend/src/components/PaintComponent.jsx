@@ -133,21 +133,6 @@ const Paint = ({ cpf }) => {
     }
   }, [drawingEnabled, savedImages, currentImageIndex]);
   
-  // // Ao entrar em modo edição, inicializa o undoStack com o estado atual do canvas
-  // useEffect(() => {
-  //   if (drawingEnabled) {
-  //     const canvas = canvasRef.current;
-  //     const initialSnapshot = ctxRef.current.getImageData(0, 0, canvas.width, canvas.height);
-  //     console.log("Base snapshot:", initialSnapshot);
-  //     console.log("Data array:", initialSnapshot.data); // Exibe o array de pixels
-  //     const data = initialSnapshot.data; // É um Uint8ClampedArray
-  //     const allZeros = Array.from(data).every(value => value === 0);
-  //     console.log("INICIAL Todos os valores são 0?", allZeros);
-  //     setUndoStack([initialSnapshot]);
-  //   } else {
-  //     setUndoStack([]);
-  //   }
-  // }, [drawingEnabled]);
   
   // Função para tratar mudança de background via upload
   const handleBackgroundChange = (e) => {
@@ -436,7 +421,7 @@ const handleEditSaveToggle = () => {
             </button>
             <div className={styles.timestamp}>
               {savedImages.length > 0
-                ? new Date(savedImages[currentImageIndex].timestamp).toLocaleString()
+                ? (savedImages[currentImageIndex].timestamp)
                 : "Sem imagem"}
             </div>
             <button
