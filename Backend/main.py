@@ -2,7 +2,6 @@ import time
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import psycopg2
-
 from flask import jsonify
 import psycopg2.extras
 
@@ -383,5 +382,5 @@ def get_images():
 
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(host='0.0.0.0', port=5000)
 

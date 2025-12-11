@@ -173,7 +173,6 @@
   .drawingboard canvas {
     width: 800px;  /* Confirma as dimensões fixas */
     height: 600px;
-    touch-action: none;
   }
   
   /* Controles de navegação abaixo do canvas */
