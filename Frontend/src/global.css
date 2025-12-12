@@ -17,6 +17,10 @@
     box-sizing: border-box;
 }
 
+html, body, #root {
+    height: 100%;
+}
+
 body {
     background-color: var(--gray-100);
     color: var(--gray-900);

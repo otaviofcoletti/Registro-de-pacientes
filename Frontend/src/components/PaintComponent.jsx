@@ -16,7 +16,7 @@ const Paint = ({ cpf }) => {
   const [lineWidth, setLineWidth] = useState(5);
   const [backgroundImage, setBackgroundImage] = useState(null);
   
-  // Controle de edição: true para habilitar desenho
+  // Controle de edição: false inicialmente (modo visualização), true para habilitar desenho
   const [drawingEnabled, setDrawingEnabled] = useState(false);
   
   // Imagens salvas e índice da imagem atual
@@ -26,6 +26,33 @@ const Paint = ({ cpf }) => {
   // Pilha de snapshots para undo
   const [undoStack, setUndoStack] = useState([]);
   
+  // Estado para controlar se deve carregar a imagem padrão
+  const [shouldLoadDefault, setShouldLoadDefault] = useState(false);
+  
+  // Flag para evitar que o useEffect interfira durante o salvamento
+  const isSavingRef = useRef(false);
+  
+  // Referência para a imagem do odontograma (fundo permanente)
+  const odontogramImageRef = useRef(null);
+  
+  // Função para carregar e desenhar o fundo do odontograma
+  const drawOdontogramBackground = (ctx, canvas) => {
+    if (!odontogramImageRef.current) {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        odontogramImageRef.current = img;
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      };
+      img.onerror = () => {
+        console.error("Erro ao carregar imagem do odontograma");
+      };
+      img.src = '/icons/odontograma-anatomico-2.jpg';
+    } else {
+      ctx.drawImage(odontogramImageRef.current, 0, 0, canvas.width, canvas.height);
+    }
+  };
+  
   // Carrega imagens do localStorage usando o cpf
   useEffect(() => {
     if (cpf) {
@@ -33,23 +60,42 @@ const Paint = ({ cpf }) => {
       fetch(`http://localhost:5000/get_images?cpf=${cpf}`)
         .then(response => response.json())
         .then(data => {
-          if (data && data.images) {
+          if (data && data.images && data.images.length > 0) {
             setSavedImages(data.images);
+            // Sempre mostra a imagem mais recente (última do array)
             setCurrentImageIndex(data.images.length - 1);
+            setShouldLoadDefault(false);
+          } else {
+            // Se não houver imagens, marca para carregar a imagem padrão
+            setShouldLoadDefault(true);
           }
         })
-        .catch(err => console.error("Erro ao carregar imagens do backend:", err));
+        .catch(err => {
+          console.error("Erro ao carregar imagens do backend:", err);
+          // Em caso de erro, marca para carregar a imagem padrão
+          setShouldLoadDefault(true);
+        });
 
       // Recupera imagens do localStorage (opcional, como fallback)
       const localData = localStorage.getItem(`paint_${cpf}`);
       if (localData) {
         try {
           const parsedImages = JSON.parse(localData);
-          setSavedImages(parsedImages);
-          setCurrentImageIndex(parsedImages.length - 1);
+          if (parsedImages && parsedImages.length > 0) {
+            setSavedImages(parsedImages);
+            // Sempre mostra a imagem mais recente
+            setCurrentImageIndex(parsedImages.length - 1);
+            setShouldLoadDefault(false);
+          } else {
+            setShouldLoadDefault(true);
+          }
         } catch (e) {
           console.error("Erro ao carregar imagens salvas:", e);
+          setShouldLoadDefault(true);
         }
+      } else {
+        // Se não houver dados no localStorage, marca para carregar a imagem padrão
+        setShouldLoadDefault(true);
       }
     }
   }, [cpf]);
@@ -91,6 +137,8 @@ const Paint = ({ cpf }) => {
   // Configuração inicial do canvas (usa dimensões definidas no CSS)
   useEffect(() => {
     const canvas = canvasRef.current;
+    if (!canvas) return;
+    
     canvas.width = canvas.offsetWidth;
     canvas.height = canvas.offsetHeight;
     const ctx = canvas.getContext('2d');
@@ -99,16 +147,31 @@ const Paint = ({ cpf }) => {
     ctx.strokeStyle = color;
     ctx.fillStyle = color;
     ctxRef.current = ctx;
+    
     // Se houver background, desenha-o
     if (backgroundImage) {
       const img = new Image();
+      img.crossOrigin = 'anonymous';
       img.src = backgroundImage;
       img.onload = () => {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
       };
+    } else if (shouldLoadDefault && savedImages.length === 0) {
+      // Se não houver imagens salvas e deve carregar padrão, carrega a imagem padrão
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        setBackgroundImage('/icons/odontograma-anatomico-2.jpg');
+      };
+      img.onerror = () => {
+        console.error("Erro ao carregar imagem padrão do odontograma");
+      };
+      img.src = '/icons/odontograma-anatomico-2.jpg';
     }
-  }, [backgroundImage]);
+  }, [backgroundImage, shouldLoadDefault, savedImages.length]);
   
   // Atualiza propriedades do contexto quando a cor ou a espessura mudam
   useEffect(() => {
@@ -119,19 +182,38 @@ const Paint = ({ cpf }) => {
     }
   }, [color, lineWidth]);
   
-  // Quando não estiver em modo edição, exibe a imagem salva atual
+  // Quando não estiver em modo edição, exibe a imagem salva atual ou a imagem padrão
+  // Mas não interfere durante o salvamento
   useEffect(() => {
-    if (!drawingEnabled && savedImages.length > 0) {
+    if (!drawingEnabled && !isSavingRef.current) {
       const canvas = canvasRef.current;
       const ctx = ctxRef.current;
-      const img = new Image();
-      img.src = savedImages[currentImageIndex].image;
-      img.onload = () => {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-      };
+      if (!canvas || !ctx) return;
+      
+      if (savedImages.length > 0 && currentImageIndex >= 0) {
+        // Exibe a imagem salva selecionada
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.src = savedImages[currentImageIndex].image;
+        img.onload = () => {
+          // Só atualiza se não estiver salvando
+          if (!isSavingRef.current) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            // Primeiro desenha o fundo do odontograma
+            drawOdontogramBackground(ctx, canvas);
+            // Depois desenha a imagem salva por cima
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          }
+        };
+      } else if (savedImages.length === 0) {
+        // Se não houver imagens salvas, exibe apenas o odontograma
+        if (!isSavingRef.current) {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          drawOdontogramBackground(ctx, canvas);
+        }
+      }
     }
-  }, [drawingEnabled, savedImages, currentImageIndex]);
+  }, [drawingEnabled, savedImages, currentImageIndex, backgroundImage]);
   
   
   // Função para tratar mudança de background via upload
@@ -186,28 +268,58 @@ const Paint = ({ cpf }) => {
     setIsDrawing(true);
     setXPrevious(e.nativeEvent.offsetX);
     setYPrevious(e.nativeEvent.offsetY);
+    
+    // Captura o snapshot atual (que já deve ter o fundo + desenhos anteriores)
+    setSnapshot(ctxRef.current.getImageData(0, 0, canvasRef.current.width, canvasRef.current.height));
+    
+    // Inicia um novo caminho para o desenho
     ctxRef.current.beginPath();
     ctxRef.current.moveTo(e.nativeEvent.offsetX, e.nativeEvent.offsetY);
-    setSnapshot(ctxRef.current.getImageData(0, 0, canvasRef.current.width, canvasRef.current.height));
   };
   
   // Função para desenhar durante o movimento do ponteiro
   const draw = (e) => {
-    if (!isDrawing || !drawingEnabled) return;
+    if (!isDrawing || !drawingEnabled || !snapshot) return;
+    
+    // Restaura o snapshot (fundo + desenhos anteriores)
     ctxRef.current.putImageData(snapshot, 0, 0);
+    
     if (selectedTool === 'brush') {
+      // Modo normal: desenha por cima
+      ctxRef.current.globalCompositeOperation = 'source-over';
       ctxRef.current.lineTo(e.nativeEvent.offsetX, e.nativeEvent.offsetY);
       ctxRef.current.stroke();
     } else if (selectedTool === 'eraser') {
-      ctxRef.current.strokeStyle = '#FFFFFF';
+      // Restaura o snapshot primeiro
+      ctxRef.current.putImageData(snapshot, 0, 0);
+      
+      // Usa destination-out para apagar apenas onde a borracha passa
+      ctxRef.current.globalCompositeOperation = 'destination-out';
+      ctxRef.current.strokeStyle = 'rgba(0,0,0,1)'; // Cor opaca para garantir que apague
       ctxRef.current.lineTo(e.nativeEvent.offsetX, e.nativeEvent.offsetY);
       ctxRef.current.stroke();
-      ctxRef.current.strokeStyle = color;
+      
+      // Imediatamente após apagar, redesenha o fundo do odontograma por baixo
+      // Isso garante que o fundo sempre fique visível em tempo real
+      const canvas = canvasRef.current;
+      if (odontogramImageRef.current) {
+        ctxRef.current.save();
+        ctxRef.current.globalCompositeOperation = 'destination-over';
+        ctxRef.current.drawImage(odontogramImageRef.current, 0, 0, canvas.width, canvas.height);
+        ctxRef.current.restore();
+      }
+      
+      // Restaura o modo normal
+      ctxRef.current.globalCompositeOperation = 'source-over';
+      ctxRef.current.strokeStyle = color; // Restaura a cor original
     } else if (selectedTool === 'rectangle') {
+      ctxRef.current.globalCompositeOperation = 'source-over';
       drawRectangle(e);
     } else if (selectedTool === 'triangle') {
+      ctxRef.current.globalCompositeOperation = 'source-over';
       drawTriangle(e);
     } else if (selectedTool === 'circle') {
+      ctxRef.current.globalCompositeOperation = 'source-over';
       drawCircle(e);
     }
   };
@@ -228,18 +340,13 @@ const Paint = ({ cpf }) => {
     setUndoStack(prev => [...prev, snapshotData]);
   };
   
-  // Limpa o canvas (apaga somente os desenhos da edição atual) e redesenha o background, se existir
+  // Limpa o canvas (apaga somente os desenhos da edição atual) e redesenha o background do odontograma
   const clearCanvas = () => {
     const canvas = canvasRef.current;
     if (!canvas || !ctxRef.current) return;
     ctxRef.current.clearRect(0, 0, canvas.width, canvas.height);
-    if (backgroundImage) {
-      const img = new Image();
-      img.src = backgroundImage;
-      img.onload = () => {
-        ctxRef.current.drawImage(img, 0, 0, canvas.width, canvas.height);
-      };
-    }
+    // Sempre redesenha o fundo do odontograma
+    drawOdontogramBackground(ctxRef.current, canvas);
   };
   
   // Função Undo: remove o último snapshot e restaura o anterior
@@ -260,15 +367,16 @@ const Paint = ({ cpf }) => {
   // Na parte de alternância entre editar e salvar:
 const handleEditSaveToggle = () => {
   if (drawingEnabled) {
-    // Modo salvar: captura o canvas e envia para o backend, etc.
+    // Modo salvar: captura o canvas atual e salva
     const imageData = canvasRef.current.toDataURL('image/png');
     const timestamp = new Date().toISOString();
-    const newImage = { image: imageData, timestamp };
-    const updatedImages = [...savedImages, newImage];
-    setSavedImages(updatedImages);
-    localStorage.setItem(`paint_${cpf}`, JSON.stringify(updatedImages));
-    setCurrentImageIndex(updatedImages.length - 1);
+    
+    // Marca que está salvando para evitar que o useEffect interfira
+    isSavingRef.current = true;
+    
+    // Desabilita o modo de edição imediatamente para evitar edições durante o salvamento
     setDrawingEnabled(false);
+    // NÃO limpa o canvas - mantém a imagem editada visível
 
     // Chamada à rota do backend para salvar a imagem
     fetch('http://localhost:5000/save_image', {
@@ -281,31 +389,98 @@ const handleEditSaveToggle = () => {
       .then(response => response.json())
       .then(data => {
         console.log("Imagem salva no backend com sucesso:", data);
+        
+        // Aguarda um pouco para garantir que o arquivo foi escrito no disco
+        setTimeout(() => {
+          // Busca as imagens atualizadas do backend
+          fetch(`http://localhost:5000/get_images?cpf=${cpf}`)
+            .then(response => response.json())
+            .then(backendData => {
+              if (backendData && backendData.images && backendData.images.length > 0) {
+                // Atualiza a lista de imagens salvas
+                setSavedImages(backendData.images);
+                // Define o índice para a imagem mais recente (última do array)
+                const mostRecentIndex = backendData.images.length - 1;
+                setCurrentImageIndex(mostRecentIndex);
+                
+                // Carrega a imagem mais recente do backend no canvas
+                // Substitui suavemente a imagem atual pela nova do backend
+                const canvas = canvasRef.current;
+                const ctx = ctxRef.current;
+                if (canvas && ctx) {
+                  const img = new Image();
+                  img.crossOrigin = 'anonymous';
+                  img.src = backendData.images[mostRecentIndex].image;
+                  img.onload = () => {
+                    // Primeiro desenha o fundo do odontograma
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    drawOdontogramBackground(ctx, canvas);
+                    // Depois desenha a imagem salva por cima
+                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                    // Libera a flag de salvamento após carregar a imagem
+                    isSavingRef.current = false;
+                  };
+                }
+                
+                // Atualiza o localStorage também
+                localStorage.setItem(`paint_${cpf}`, JSON.stringify(backendData.images));
+              } else {
+                isSavingRef.current = false;
+              }
+            })
+            .catch(err => {
+              console.error("Erro ao buscar imagens atualizadas:", err);
+              isSavingRef.current = false;
+            });
+        }, 500); // Aguarda 500ms para garantir que o arquivo foi salvo
       })
       .catch(error => {
         console.error("Erro ao salvar imagem no backend:", error);
+        // Em caso de erro, reabilita o modo de edição
+        isSavingRef.current = false;
+        setDrawingEnabled(true);
       });
   } else {
-    // Modo editar: se houver imagem salva, define o background
+    // Modo editar: sempre carrega a imagem mais recente para edição
     if (savedImages.length > 0) {
-      // Em vez de apenas setBackgroundImage, vamos carregar a imagem e desenhá-la no canvas.
+      // Sempre usa a imagem mais recente (última do array) para editar
+      const mostRecentIndex = savedImages.length - 1;
+      setCurrentImageIndex(mostRecentIndex);
       const img = new Image();
+      img.crossOrigin = 'anonymous';
       img.onload = () => {
         const canvas = canvasRef.current;
         const ctx = ctxRef.current;
         ctx.clearRect(0, 0, canvas.width, canvas.height);
+        // Primeiro desenha o fundo do odontograma
+        drawOdontogramBackground(ctx, canvas);
+        // Depois desenha a imagem salva por cima
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
         // Agora que o background foi desenhado, capture essa snapshot como base da undoStack.
         const baseSnapshot = ctx.getImageData(0, 0, canvas.width, canvas.height);
         setUndoStack([baseSnapshot]);
       };
-      // Use a imagem salva como background
-      img.src = savedImages[currentImageIndex].image;
-    } else {
-      // Se não houver background definido, captura o snapshot atual (pode ser em branco)
+      // Use a imagem mais recente como background
+      img.src = savedImages[mostRecentIndex].image;
+    } else if (shouldLoadDefault || !backgroundImage) {
+      // Se não houver imagens salvas, carrega apenas o odontograma como fundo
       const canvas = canvasRef.current;
-      const baseSnapshot = ctxRef.current.getImageData(0, 0, canvas.width, canvas.height);
-      setUndoStack([baseSnapshot]);
+      const ctx = ctxRef.current;
+      if (canvas && ctx) {
+        drawOdontogramBackground(ctx, canvas);
+        const baseSnapshot = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        setUndoStack([baseSnapshot]);
+        setBackgroundImage('/icons/odontograma-anatomico-2.jpg');
+      }
+    } else {
+      // Se não houver background definido, carrega o odontograma
+      const canvas = canvasRef.current;
+      const ctx = ctxRef.current;
+      if (canvas && ctx) {
+        drawOdontogramBackground(ctx, canvas);
+        const baseSnapshot = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        setUndoStack([baseSnapshot]);
+      }
     }
     setDrawingEnabled(true);
   }
@@ -315,12 +490,16 @@ const handleEditSaveToggle = () => {
   // Navegação entre imagens salvas
   const handlePrevious = () => {
     if (currentImageIndex > 0) {
+      // Desabilita o modo de edição para visualizar a imagem anterior
+      setDrawingEnabled(false);
       setCurrentImageIndex(prev => prev - 1);
     }
   };
   
   const handleNext = () => {
     if (currentImageIndex < savedImages.length - 1) {
+      // Desabilita o modo de edição para visualizar a próxima imagem
+      setDrawingEnabled(false);
       setCurrentImageIndex(prev => prev + 1);
     }
   };
@@ -415,7 +594,7 @@ const handleEditSaveToggle = () => {
             <button
               className={styles.navButton}
               onClick={handlePrevious}
-              disabled={drawingEnabled || currentImageIndex === 0 || savedImages.length === 0}
+              disabled={currentImageIndex === 0 || savedImages.length === 0}
             >
               ◀
             </button>
@@ -427,7 +606,7 @@ const handleEditSaveToggle = () => {
             <button
               className={styles.navButton}
               onClick={handleNext}
-              disabled={drawingEnabled || currentImageIndex === savedImages.length - 1 || savedImages.length === 0}
+              disabled={currentImageIndex === savedImages.length - 1 || savedImages.length === 0}
             >
               ▶
             </button>

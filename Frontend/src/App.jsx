@@ -12,9 +12,10 @@ import EditPatient from "./pages/EditPatient";
 function App() {
 
   return (
-    <div>      
+    <div className={styles.app}>      
       <Router>
         <Header />
+        <main className={styles.mainContent}>
           <Routes>
             <Route exact path="/" element={<Home />}/>
             <Route path="/cadastro" element={<CadastroPaciente />}/>
@@ -23,6 +24,7 @@ function App() {
             <Route path="/editar-paciente/:cpf" element={<EditPatient />} />
             <Route path="/paint" element={<Paint />} />
           </Routes>
+        </main>
         <Footer/>
       </Router>
     </div>

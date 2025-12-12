@@ -117,3 +117,100 @@
 .addButton:hover {
   background: var(--light-vinho);
 }
+
+.buttonContainer {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.deleteButton {
+  background: #dc3545;
+  color: var(--white);
+  border: none;
+  border-radius: 4px;
+  padding: 0.8rem 1.5rem;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background 0.3s;
+}
+
+.deleteButton:hover {
+  background: #c82333;
+}
+
+.dialogOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.dialogContent {
+  background: var(--white);
+  padding: 2rem;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  max-width: 500px;
+  width: 90%;
+}
+
+.dialogTitle {
+  font-size: 1.5rem;
+  color: var(--vinho);
+  margin-bottom: 1rem;
+  text-align: center;
+}
+
+.dialogMessage {
+  font-size: 1rem;
+  color: var(--gray-700);
+  margin-bottom: 1.5rem;
+  text-align: center;
+  line-height: 1.5;
+}
+
+.dialogButtons {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.dialogCancelButton {
+  flex: 1;
+  background: var(--gray-300);
+  color: var(--gray-700);
+  border: none;
+  border-radius: 4px;
+  padding: 0.8rem 1.5rem;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background 0.3s;
+}
+
+.dialogCancelButton:hover {
+  background: var(--gray-400);
+}
+
+.dialogConfirmButton {
+  flex: 1;
+  background: #dc3545;
+  color: var(--white);
+  border: none;
+  border-radius: 4px;
+  padding: 0.8rem 1.5rem;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background 0.3s;
+}
+
+.dialogConfirmButton:hover {
+  background: #c82333;
+}

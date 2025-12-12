@@ -16,6 +16,7 @@ export function PatientDetails() {
   });
   const [annotations, setAnnotations] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
   // Fetch patient details
   useEffect(() => {
@@ -141,6 +142,25 @@ export function PatientDetails() {
       }
     } catch (error) {
       console.error('Erro ao enviar requisição de exclusão:', error);
+    }
+  };
+
+  const handleDeletePatient = async () => {
+    try {
+      const response = await fetch(`http://127.0.0.1:5000/pacientes/${cpf}`, {
+        method: 'DELETE'
+      });
+
+      if (response.ok) {
+        // Redireciona para a lista de pacientes após exclusão bem-sucedida
+        navigate('/pacientes');
+      } else {
+        const errorData = await response.json();
+        alert(`Erro ao excluir paciente: ${errorData.error || 'Erro desconhecido'}`);
+      }
+    } catch (error) {
+      console.error('Erro ao excluir paciente:', error);
+      alert('Erro ao excluir paciente. Tente novamente.');
     }
   };
   
@@ -280,7 +300,43 @@ export function PatientDetails() {
           </tbody>
         </table>
       </div>
-      <button className={styles.backButton} onClick={() => navigate('/pacientes')}>Voltar para Lista</button>
+      <div className={styles.buttonContainer}>
+        <button className={styles.deleteButton} onClick={() => setShowDeleteDialog(true)}>
+          Excluir Ficha
+        </button>
+        <button className={styles.backButton} onClick={() => navigate('/pacientes')}>Voltar para Lista</button>
+      </div>
+      
+      {/* Diálogo de confirmação de exclusão */}
+      {showDeleteDialog && (
+        <div className={styles.dialogOverlay} onClick={() => setShowDeleteDialog(false)}>
+          <div className={styles.dialogContent} onClick={(e) => e.stopPropagation()}>
+            <h2 className={styles.dialogTitle}>Confirmar Exclusão</h2>
+            <p className={styles.dialogMessage}>
+              Tem certeza que deseja excluir a ficha do paciente <strong>{patient?.name}</strong>?
+              <br />
+              Esta ação não pode ser desfeita.
+            </p>
+            <div className={styles.dialogButtons}>
+              <button 
+                className={styles.dialogCancelButton} 
+                onClick={() => setShowDeleteDialog(false)}
+              >
+                Cancelar
+              </button>
+              <button 
+                className={styles.dialogConfirmButton} 
+                onClick={() => {
+                  setShowDeleteDialog(false);
+                  handleDeletePatient();
+                }}
+              >
+                Excluir
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
