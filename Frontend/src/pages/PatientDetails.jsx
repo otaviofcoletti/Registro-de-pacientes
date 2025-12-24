@@ -316,7 +316,12 @@ export function PatientDetails() {
           Ver Orçamentos e Pagamentos
         </button>
       </div>
-      <Paint cpf={cpf} selectedImageIndex={selectedImageIndex} onImagesChange={fetchImages}/>
+      <Paint 
+        cpf={cpf} 
+        selectedImageIndex={selectedImageIndex} 
+        onImagesChange={fetchImages}
+        imagesCount={images.length}
+      />
       
       {/* Galeria de Imagens */}
       {images.length > 0 && (

@@ -1,8 +1,8 @@
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, useCallback } from 'react';
 import styles from './PaintComponent.module.css';
 const API_URL = import.meta.env.VITE_API_URL;
 
-const Paint = ({ cpf, selectedImageIndex, onImagesChange }) => {
+const Paint = ({ cpf, selectedImageIndex, onImagesChange, imagesCount }) => {
   const canvasRef = useRef(null);
   const ctxRef = useRef(null);
   
@@ -38,6 +38,11 @@ const Paint = ({ cpf, selectedImageIndex, onImagesChange }) => {
   
   // Referência para a imagem do odontograma (fundo permanente)
   const odontogramImageRef = useRef(null);
+  
+  // Referência para a imagem externa carregada
+  const externalImageRef = useRef(null);
+  // Informações de posicionamento da imagem externa
+  const externalImageDrawInfo = useRef(null);
   
   // Função para carregar e desenhar o fundo do odontograma
   const drawOdontogramBackground = (ctx, canvas) => {
@@ -99,8 +104,8 @@ const Paint = ({ cpf, selectedImageIndex, onImagesChange }) => {
     });
   };
   
-  // Carrega imagens do localStorage usando o cpf
-  useEffect(() => {
+  // Função para carregar imagens do backend
+  const loadImages = useCallback(() => {
     if (cpf) {
       // Recupera imagens do backend
       fetch(`${API_URL}/get_images?cpf=${cpf}`)
@@ -109,13 +114,30 @@ const Paint = ({ cpf, selectedImageIndex, onImagesChange }) => {
           if (data && data.images && data.images.length > 0) {
             // Ordena as imagens das mais recentes para as mais antigas
             const sortedImages = sortImagesByDate(data.images);
-            setSavedImages(sortedImages);
-            // Sempre mostra a imagem mais recente (primeira do array ordenado)
-            setCurrentImageIndex(0);
+            setSavedImages(prevImages => {
+              // Ajusta o índice atual se necessário
+              setCurrentImageIndex(prevIndex => {
+                if (prevIndex >= sortedImages.length) {
+                  // Se o índice atual é maior que o número de imagens, ajusta para a última
+                  return Math.max(0, sortedImages.length - 1);
+                } else if (prevIndex < 0 && sortedImages.length > 0) {
+                  // Se o índice é inválido mas há imagens, define para a primeira
+                  return 0;
+                }
+                return prevIndex;
+              });
+              return sortedImages;
+            });
+            
             setShouldLoadDefault(false);
+            
+            // Atualiza o localStorage também
+            localStorage.setItem(`paint_${cpf}`, JSON.stringify(sortedImages));
           } else {
             // Se não houver imagens, marca para carregar a imagem padrão
             setShouldLoadDefault(true);
+            setCurrentImageIndex(0);
+            setSavedImages([]);
           }
         })
         .catch(err => {
@@ -123,32 +145,20 @@ const Paint = ({ cpf, selectedImageIndex, onImagesChange }) => {
           // Em caso de erro, marca para carregar a imagem padrão
           setShouldLoadDefault(true);
         });
-
-      // Recupera imagens do localStorage (opcional, como fallback)
-      const localData = localStorage.getItem(`paint_${cpf}`);
-      if (localData) {
-        try {
-          const parsedImages = JSON.parse(localData);
-          if (parsedImages && parsedImages.length > 0) {
-            // Ordena as imagens do localStorage também
-            const sortedLocalImages = sortImagesByDate(parsedImages);
-            setSavedImages(sortedLocalImages);
-            // Sempre mostra a imagem mais recente (primeira do array ordenado)
-            setCurrentImageIndex(0);
-            setShouldLoadDefault(false);
-          } else {
-            setShouldLoadDefault(true);
-          }
-        } catch (e) {
-          console.error("Erro ao carregar imagens salvas:", e);
-          setShouldLoadDefault(true);
-        }
-      } else {
-        // Se não houver dados no localStorage, marca para carregar a imagem padrão
-        setShouldLoadDefault(true);
-      }
     }
   }, [cpf]);
+
+  // Carrega imagens quando o cpf muda
+  useEffect(() => {
+    loadImages();
+  }, [loadImages]);
+
+  // Recarrega imagens quando o número de imagens na galeria muda (indica que houve deleção)
+  useEffect(() => {
+    if (imagesCount !== undefined && imagesCount !== savedImages.length) {
+      loadImages();
+    }
+  }, [imagesCount, savedImages.length, loadImages]);
   
   // Configura os botões de ferramentas
   useEffect(() => {
@@ -249,9 +259,7 @@ const Paint = ({ cpf, selectedImageIndex, onImagesChange }) => {
           // Só atualiza se não estiver salvando
           if (!isSavingRef.current) {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-            // Primeiro desenha o fundo do odontograma
-            drawOdontogramBackground(ctx, canvas);
-            // Depois desenha a imagem salva por cima
+            // Desenha a imagem salva diretamente (ela já contém tudo)
             ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
           }
         };
@@ -277,13 +285,80 @@ const Paint = ({ cpf, selectedImageIndex, onImagesChange }) => {
   }, [selectedImageIndex, savedImages.length]);
   
   
-  // Função para tratar mudança de background via upload
+  // Função para carregar imagem externa e abrir em modo de edição
   const handleBackgroundChange = (e) => {
     const file = e.target.files[0];
     if (file) {
       const reader = new FileReader();
-      reader.onload = (event) => setBackgroundImage(event.target.result);
+      reader.onload = (event) => {
+        const imageData = event.target.result;
+        
+        // Carrega a imagem no canvas
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = () => {
+          const canvas = canvasRef.current;
+          const ctx = ctxRef.current;
+          if (canvas && ctx) {
+            // Salva a referência da imagem externa
+            externalImageRef.current = img;
+            
+            // Limpa o canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Desenha fundo branco
+            ctx.fillStyle = '#FFFFFF';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Desenha a imagem carregada por cima
+            // Calcula as dimensões para manter a proporção e centralizar
+            const imgAspect = img.width / img.height;
+            const canvasAspect = canvas.width / canvas.height;
+            
+            let drawWidth, drawHeight, drawX, drawY;
+            
+            if (imgAspect > canvasAspect) {
+              // Imagem é mais larga - ajusta pela largura
+              drawWidth = canvas.width;
+              drawHeight = canvas.width / imgAspect;
+              drawX = 0;
+              drawY = (canvas.height - drawHeight) / 2;
+            } else {
+              // Imagem é mais alta - ajusta pela altura
+              drawHeight = canvas.height;
+              drawWidth = canvas.height * imgAspect;
+              drawX = (canvas.width - drawWidth) / 2;
+              drawY = 0;
+            }
+            
+            ctx.drawImage(img, drawX, drawY, drawWidth, drawHeight);
+            
+            // Salva as informações de posicionamento para usar na borracha
+            externalImageDrawInfo.current = { drawX, drawY, drawWidth, drawHeight };
+            
+            // Captura snapshot como base da undoStack
+            const baseSnapshot = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            setUndoStack([baseSnapshot]);
+            
+            // Limpa o estado de edição para que salve como nova imagem
+            setEditingImageTimestamp(null);
+            
+            // Habilita o modo de edição automaticamente
+            setDrawingEnabled(true);
+          }
+        };
+        img.onerror = () => {
+          alert('Erro ao carregar a imagem. Por favor, tente novamente.');
+        };
+        img.src = imageData;
+      };
+      reader.onerror = () => {
+        alert('Erro ao ler o arquivo. Por favor, tente novamente.');
+      };
       reader.readAsDataURL(file);
+      
+      // Limpa o input para permitir carregar o mesmo arquivo novamente
+      e.target.value = '';
     }
   };
   
@@ -550,9 +625,18 @@ const handleEditSaveToggle = () => {
                       : sortedImages[0].image;
                     img.src = imageToLoad;
                     img.onload = () => {
-                      // Primeiro desenha o fundo do odontograma
                       ctx.clearRect(0, 0, canvas.width, canvas.height);
-                      drawOdontogramBackground(ctx, canvas);
+                      // Se houver imagem externa como fundo, mantém ela; senão usa odontograma
+                      if (externalImageRef.current && externalImageDrawInfo.current) {
+                        // Desenha fundo branco + imagem externa
+                        ctx.fillStyle = '#FFFFFF';
+                        ctx.fillRect(0, 0, canvas.width, canvas.height);
+                        const { drawX, drawY, drawWidth, drawHeight } = externalImageDrawInfo.current;
+                        ctx.drawImage(externalImageRef.current, drawX, drawY, drawWidth, drawHeight);
+                      } else {
+                        // Desenha o odontograma
+                        drawOdontogramBackground(ctx, canvas);
+                      }
                       // Depois desenha a imagem salva por cima
                       ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
                       // Libera a flag de salvamento após carregar a imagem
@@ -643,9 +727,18 @@ const handleEditSaveToggle = () => {
                     img.crossOrigin = 'anonymous';
                     img.src = sortedImages[0].image;
                     img.onload = () => {
-                      // Primeiro desenha o fundo do odontograma
                       ctx.clearRect(0, 0, canvas.width, canvas.height);
-                      drawOdontogramBackground(ctx, canvas);
+                      // Se houver imagem externa como fundo, mantém ela; senão usa odontograma
+                      if (externalImageRef.current && externalImageDrawInfo.current) {
+                        // Desenha fundo branco + imagem externa
+                        ctx.fillStyle = '#FFFFFF';
+                        ctx.fillRect(0, 0, canvas.width, canvas.height);
+                        const { drawX, drawY, drawWidth, drawHeight } = externalImageDrawInfo.current;
+                        ctx.drawImage(externalImageRef.current, drawX, drawY, drawWidth, drawHeight);
+                      } else {
+                        // Desenha o odontograma
+                        drawOdontogramBackground(ctx, canvas);
+                      }
                       // Depois desenha a imagem salva por cima
                       ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
                       // Libera a flag de salvamento após carregar a imagem
@@ -684,6 +777,9 @@ const handleEditSaveToggle = () => {
     }
   } else {
     // Modo editar: carrega a imagem selecionada (currentImageIndex) para edição
+    // NÃO limpa a referência da imagem externa aqui - ela deve ser mantida como fundo
+    // A referência só será limpa quando o usuário carregar uma nova imagem ou usar "Criar"
+    
     if (savedImages.length > 0 && currentImageIndex >= 0 && currentImageIndex < savedImages.length) {
       // Usa a imagem selecionada (currentImageIndex) para editar
       const selectedImage = savedImages[currentImageIndex];
@@ -695,11 +791,9 @@ const handleEditSaveToggle = () => {
         const canvas = canvasRef.current;
         const ctx = ctxRef.current;
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-        // Primeiro desenha o fundo do odontograma
-        drawOdontogramBackground(ctx, canvas);
-        // Depois desenha a imagem salva por cima
+        // Desenha a imagem salva diretamente (ela já contém tudo: fundo + imagem + desenhos)
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-        // Agora que o background foi desenhado, capture essa snapshot como base da undoStack.
+        // Captura o snapshot como base da undoStack (contém a imagem completa)
         const baseSnapshot = ctx.getImageData(0, 0, canvas.width, canvas.height);
         setUndoStack([baseSnapshot]);
       };
@@ -752,6 +846,10 @@ const handleEditSaveToggle = () => {
 
   // Função para criar uma nova imagem baseada na selecionada
   const handleCreate = () => {
+    // Limpa a referência da imagem externa ao criar nova imagem
+    externalImageRef.current = null;
+    externalImageDrawInfo.current = null;
+    
     if (savedImages.length > 0 && currentImageIndex >= 0 && currentImageIndex < savedImages.length) {
       // Carrega a imagem selecionada como base
       const selectedImage = savedImages[currentImageIndex];
@@ -763,9 +861,7 @@ const handleEditSaveToggle = () => {
         const canvas = canvasRef.current;
         const ctx = ctxRef.current;
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-        // Primeiro desenha o fundo do odontograma
-        drawOdontogramBackground(ctx, canvas);
-        // Depois desenha a imagem selecionada por cima como base
+        // Desenha a imagem selecionada diretamente (ela já contém tudo)
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
         // Captura snapshot como base da undoStack
         const baseSnapshot = ctx.getImageData(0, 0, canvas.width, canvas.height);
@@ -870,7 +966,15 @@ const handleEditSaveToggle = () => {
             <button className={styles.undoButton} onClick={handleUndo} disabled={!drawingEnabled || undoStack.length <= 1}>
               Undo
             </button>
-            <input type="file" accept="image/*" onChange={handleBackgroundChange} />
+            <label className={styles.uploadButton}>
+              <input 
+                type="file" 
+                accept="image/*" 
+                onChange={handleBackgroundChange}
+                style={{ display: 'none' }}
+              />
+              Carregar Imagem
+            </label>
           </div>
         </section>
         <section className={styles.drawingboard}>
