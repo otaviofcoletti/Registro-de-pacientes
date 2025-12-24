@@ -219,4 +219,21 @@
     border-color: #ccc;
     cursor: not-allowed;
   }
+
+.buttons .createButton {
+    border: 1px solid #28a745;
+    background: #28a745;
+}
+
+.buttons .createButton:hover {
+    background: #218838;
+    border-color: #1e7e34;
+}
+
+.buttons .createButton:disabled {
+    background: #ccc;
+    border-color: #ccc;
+    cursor: not-allowed;
+    opacity: 0.6;
+}
   

@@ -2,7 +2,7 @@ import React, { useRef, useEffect, useState } from 'react';
 import styles from './PaintComponent.module.css';
 const API_URL = import.meta.env.VITE_API_URL;
 
-const Paint = ({ cpf }) => {
+const Paint = ({ cpf, selectedImageIndex, onImagesChange }) => {
   const canvasRef = useRef(null);
   const ctxRef = useRef(null);
   
@@ -23,6 +23,9 @@ const Paint = ({ cpf }) => {
   // Imagens salvas e índice da imagem atual
   const [savedImages, setSavedImages] = useState([]);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  
+  // Rastreia se estamos editando uma imagem existente (timestamp_iso) ou criando uma nova
+  const [editingImageTimestamp, setEditingImageTimestamp] = useState(null);
   
   // Pilha de snapshots para undo
   const [undoStack, setUndoStack] = useState([]);
@@ -54,6 +57,48 @@ const Paint = ({ cpf }) => {
     }
   };
   
+  // Função auxiliar para parsear timestamp ISO
+  const parseTimestampISO = (timestampISO) => {
+    if (!timestampISO) return new Date(0);
+    try {
+      const parts = timestampISO.split('T');
+      if (parts.length !== 2) return new Date(0);
+      
+      const [datePart, timePart] = parts;
+      const timeParts = timePart.split('-');
+      if (timeParts.length >= 3) {
+        const hour = timeParts[0];
+        const minute = timeParts[1];
+        const rest = timeParts.slice(2).join('-');
+        const timeFixed = `${hour}:${minute}:${rest}`;
+        const isoString = `${datePart}T${timeFixed}`;
+        const isoFinal = isoString.endsWith('Z') 
+          ? isoString.replace('Z', '+00:00') 
+          : isoString + '+00:00';
+        return new Date(isoFinal);
+      }
+      return new Date(0);
+    } catch (e) {
+      return new Date(0);
+    }
+  };
+  
+  // Função para ordenar imagens das mais recentes para as mais antigas
+  const sortImagesByDate = (imagesList) => {
+    return [...imagesList].sort((a, b) => {
+      try {
+        if (a.timestamp_iso && b.timestamp_iso) {
+          const dateA = parseTimestampISO(a.timestamp_iso);
+          const dateB = parseTimestampISO(b.timestamp_iso);
+          return dateB - dateA; // Ordem decrescente (mais recente primeiro)
+        }
+        return 0;
+      } catch (e) {
+        return 0;
+      }
+    });
+  };
+  
   // Carrega imagens do localStorage usando o cpf
   useEffect(() => {
     if (cpf) {
@@ -62,9 +107,11 @@ const Paint = ({ cpf }) => {
         .then(response => response.json())
         .then(data => {
           if (data && data.images && data.images.length > 0) {
-            setSavedImages(data.images);
-            // Sempre mostra a imagem mais recente (última do array)
-            setCurrentImageIndex(data.images.length - 1);
+            // Ordena as imagens das mais recentes para as mais antigas
+            const sortedImages = sortImagesByDate(data.images);
+            setSavedImages(sortedImages);
+            // Sempre mostra a imagem mais recente (primeira do array ordenado)
+            setCurrentImageIndex(0);
             setShouldLoadDefault(false);
           } else {
             // Se não houver imagens, marca para carregar a imagem padrão
@@ -83,9 +130,11 @@ const Paint = ({ cpf }) => {
         try {
           const parsedImages = JSON.parse(localData);
           if (parsedImages && parsedImages.length > 0) {
-            setSavedImages(parsedImages);
-            // Sempre mostra a imagem mais recente
-            setCurrentImageIndex(parsedImages.length - 1);
+            // Ordena as imagens do localStorage também
+            const sortedLocalImages = sortImagesByDate(parsedImages);
+            setSavedImages(sortedLocalImages);
+            // Sempre mostra a imagem mais recente (primeira do array ordenado)
+            setCurrentImageIndex(0);
             setShouldLoadDefault(false);
           } else {
             setShouldLoadDefault(true);
@@ -215,6 +264,17 @@ const Paint = ({ cpf }) => {
       }
     }
   }, [drawingEnabled, savedImages, currentImageIndex, backgroundImage]);
+  
+  // Atualiza currentImageIndex quando selectedImageIndex muda externamente
+  useEffect(() => {
+    if (selectedImageIndex !== undefined && selectedImageIndex !== null && savedImages.length > 0) {
+      if (selectedImageIndex >= 0 && selectedImageIndex < savedImages.length) {
+        setCurrentImageIndex(selectedImageIndex);
+        setDrawingEnabled(false); // Desabilita edição ao selecionar imagem externamente
+        setEditingImageTimestamp(null); // Limpa o estado de edição ao mudar de imagem
+      }
+    }
+  }, [selectedImageIndex, savedImages.length]);
   
   
   // Função para tratar mudança de background via upload
@@ -417,9 +477,8 @@ const Paint = ({ cpf }) => {
   // Na parte de alternância entre editar e salvar:
 const handleEditSaveToggle = () => {
   if (drawingEnabled) {
-    // Modo salvar: captura o canvas atual e salva
+    // Modo salvar: captura o canvas atual e salva ou atualiza
     const imageData = canvasRef.current.toDataURL('image/png');
-    const timestamp = new Date().toISOString();
     
     // Marca que está salvando para evitar que o useEffect interfira
     isSavingRef.current = true;
@@ -428,74 +487,208 @@ const handleEditSaveToggle = () => {
     setDrawingEnabled(false);
     // NÃO limpa o canvas - mantém a imagem editada visível
 
-    // Chamada à rota do backend para salvar a imagem
-    fetch(`${API_URL}/save_image`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ cpf, image: imageData, timestamp })
-    })
-      .then(response => response.json())
-      .then(data => {
-        console.log("Imagem salva no backend com sucesso:", data);
-        
-        // Aguarda um pouco para garantir que o arquivo foi escrito no disco
-        setTimeout(() => {
-          // Busca as imagens atualizadas do backend
-          fetch(`${API_URL}/get_images?cpf=${cpf}`)
-            .then(response => response.json())
-            .then(backendData => {
-              if (backendData && backendData.images && backendData.images.length > 0) {
-                // Atualiza a lista de imagens salvas
-                setSavedImages(backendData.images);
-                // Define o índice para a imagem mais recente (última do array)
-                const mostRecentIndex = backendData.images.length - 1;
-                setCurrentImageIndex(mostRecentIndex);
-                
-                // Carrega a imagem mais recente do backend no canvas
-                // Substitui suavemente a imagem atual pela nova do backend
-                const canvas = canvasRef.current;
-                const ctx = ctxRef.current;
-                if (canvas && ctx) {
-                  const img = new Image();
-                  img.crossOrigin = 'anonymous';
-                  img.src = backendData.images[mostRecentIndex].image;
-                  img.onload = () => {
-                    // Primeiro desenha o fundo do odontograma
-                    ctx.clearRect(0, 0, canvas.width, canvas.height);
-                    drawOdontogramBackground(ctx, canvas);
-                    // Depois desenha a imagem salva por cima
-                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                    // Libera a flag de salvamento após carregar a imagem
-                    isSavingRef.current = false;
-                  };
-                }
-                
-                // Atualiza o localStorage também
-                localStorage.setItem(`paint_${cpf}`, JSON.stringify(backendData.images));
-              } else {
-                isSavingRef.current = false;
-              }
-            })
-            .catch(err => {
-              console.error("Erro ao buscar imagens atualizadas:", err);
-              isSavingRef.current = false;
-            });
-        }, 500); // Aguarda 500ms para garantir que o arquivo foi salvo
+    // Se estamos editando uma imagem existente, atualiza ela
+    if (editingImageTimestamp && savedImages.length > 0) {
+      // Atualiza a imagem existente
+      fetch(`${API_URL}/update_image`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ 
+          cpf, 
+          image: imageData, 
+          timestamp_iso: editingImageTimestamp 
+        })
       })
-      .catch(error => {
-        console.error("Erro ao salvar imagem no backend:", error);
-        // Em caso de erro, reabilita o modo de edição
-        isSavingRef.current = false;
-        setDrawingEnabled(true);
-      });
+        .then(response => response.json())
+        .then(data => {
+          console.log("Imagem atualizada no backend com sucesso:", data);
+          
+          // Aguarda um pouco para garantir que o arquivo foi escrito no disco
+          setTimeout(() => {
+            // Busca as imagens atualizadas do backend
+            fetch(`${API_URL}/get_images?cpf=${cpf}`)
+              .then(response => response.json())
+              .then(backendData => {
+                if (backendData && backendData.images && backendData.images.length > 0) {
+                  // Ordena as imagens das mais recentes para as mais antigas
+                  const sortedImages = sortImagesByDate(backendData.images);
+                  // Atualiza a lista de imagens salvas
+                  setSavedImages(sortedImages);
+                  
+                  // Encontra o índice da imagem atualizada
+                  const updatedIndex = sortedImages.findIndex(
+                    img => img.timestamp_iso === editingImageTimestamp
+                  );
+                  if (updatedIndex >= 0) {
+                    setCurrentImageIndex(updatedIndex);
+                  }
+                  
+                  // Carrega a imagem atualizada no canvas
+                  const canvas = canvasRef.current;
+                  const ctx = ctxRef.current;
+                  let imageLoaded = false;
+                  
+                  // Função para atualizar a galeria após processar tudo
+                  const updateGallery = () => {
+                    if (!imageLoaded) {
+                      imageLoaded = true;
+                      setTimeout(() => {
+                        if (onImagesChange) {
+                          onImagesChange();
+                        }
+                      }, 200);
+                    }
+                  };
+                  
+                  if (canvas && ctx) {
+                    const img = new Image();
+                    img.crossOrigin = 'anonymous';
+                    const imageToLoad = updatedIndex >= 0 
+                      ? sortedImages[updatedIndex].image 
+                      : sortedImages[0].image;
+                    img.src = imageToLoad;
+                    img.onload = () => {
+                      // Primeiro desenha o fundo do odontograma
+                      ctx.clearRect(0, 0, canvas.width, canvas.height);
+                      drawOdontogramBackground(ctx, canvas);
+                      // Depois desenha a imagem salva por cima
+                      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                      // Libera a flag de salvamento após carregar a imagem
+                      isSavingRef.current = false;
+                      setEditingImageTimestamp(null); // Limpa o estado de edição
+                      updateGallery();
+                    };
+                    img.onerror = () => {
+                      // Se houver erro ao carregar a imagem, ainda assim atualiza a galeria
+                      isSavingRef.current = false;
+                      setEditingImageTimestamp(null);
+                      updateGallery();
+                    };
+                  } else {
+                    // Se não houver canvas, ainda assim atualiza a galeria
+                    isSavingRef.current = false;
+                    setEditingImageTimestamp(null);
+                    updateGallery();
+                  }
+                  
+                  // Atualiza o localStorage também
+                  localStorage.setItem(`paint_${cpf}`, JSON.stringify(sortedImages));
+                } else {
+                  isSavingRef.current = false;
+                  setEditingImageTimestamp(null);
+                }
+              })
+              .catch(err => {
+                console.error("Erro ao buscar imagens atualizadas:", err);
+                isSavingRef.current = false;
+                setEditingImageTimestamp(null);
+              });
+          }, 800); // Aumenta o tempo de espera para garantir que o arquivo foi salvo
+        })
+        .catch(error => {
+          console.error("Erro ao atualizar imagem no backend:", error);
+          // Em caso de erro, reabilita o modo de edição
+          isSavingRef.current = false;
+          setDrawingEnabled(true);
+        });
+    } else {
+      // Cria uma nova imagem
+      const timestamp = new Date().toISOString();
+      fetch(`${API_URL}/save_image`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ cpf, image: imageData, timestamp })
+      })
+        .then(response => response.json())
+        .then(data => {
+          console.log("Imagem salva no backend com sucesso:", data);
+          
+          // Aguarda um pouco para garantir que o arquivo foi escrito no disco
+          setTimeout(() => {
+            // Busca as imagens atualizadas do backend
+            fetch(`${API_URL}/get_images?cpf=${cpf}`)
+              .then(response => response.json())
+              .then(backendData => {
+                if (backendData && backendData.images && backendData.images.length > 0) {
+                  // Ordena as imagens das mais recentes para as mais antigas
+                  const sortedImages = sortImagesByDate(backendData.images);
+                  // Atualiza a lista de imagens salvas
+                  setSavedImages(sortedImages);
+                  // Define o índice para a imagem mais recente (primeira do array ordenado)
+                  setCurrentImageIndex(0);
+                  
+                  // Carrega a imagem mais recente do backend no canvas
+                  const canvas = canvasRef.current;
+                  const ctx = ctxRef.current;
+                  let imageLoaded = false;
+                  
+                  // Função para atualizar a galeria após processar tudo
+                  const updateGallery = () => {
+                    if (!imageLoaded) {
+                      imageLoaded = true;
+                      setTimeout(() => {
+                        if (onImagesChange) {
+                          onImagesChange();
+                        }
+                      }, 200);
+                    }
+                  };
+                  
+                  if (canvas && ctx) {
+                    const img = new Image();
+                    img.crossOrigin = 'anonymous';
+                    img.src = sortedImages[0].image;
+                    img.onload = () => {
+                      // Primeiro desenha o fundo do odontograma
+                      ctx.clearRect(0, 0, canvas.width, canvas.height);
+                      drawOdontogramBackground(ctx, canvas);
+                      // Depois desenha a imagem salva por cima
+                      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                      // Libera a flag de salvamento após carregar a imagem
+                      isSavingRef.current = false;
+                      updateGallery();
+                    };
+                    img.onerror = () => {
+                      // Se houver erro ao carregar a imagem, ainda assim atualiza a galeria
+                      isSavingRef.current = false;
+                      updateGallery();
+                    };
+                  } else {
+                    // Se não houver canvas, ainda assim atualiza a galeria
+                    isSavingRef.current = false;
+                    updateGallery();
+                  }
+                  
+                  // Atualiza o localStorage também
+                  localStorage.setItem(`paint_${cpf}`, JSON.stringify(sortedImages));
+                } else {
+                  isSavingRef.current = false;
+                }
+              })
+              .catch(err => {
+                console.error("Erro ao buscar imagens atualizadas:", err);
+                isSavingRef.current = false;
+              });
+          }, 800); // Aumenta o tempo de espera para garantir que o arquivo foi salvo
+        })
+        .catch(error => {
+          console.error("Erro ao salvar imagem no backend:", error);
+          // Em caso de erro, reabilita o modo de edição
+          isSavingRef.current = false;
+          setDrawingEnabled(true);
+        });
+    }
   } else {
-    // Modo editar: sempre carrega a imagem mais recente para edição
-    if (savedImages.length > 0) {
-      // Sempre usa a imagem mais recente (última do array) para editar
-      const mostRecentIndex = savedImages.length - 1;
-      setCurrentImageIndex(mostRecentIndex);
+    // Modo editar: carrega a imagem selecionada (currentImageIndex) para edição
+    if (savedImages.length > 0 && currentImageIndex >= 0 && currentImageIndex < savedImages.length) {
+      // Usa a imagem selecionada (currentImageIndex) para editar
+      const selectedImage = savedImages[currentImageIndex];
+      setEditingImageTimestamp(selectedImage.timestamp_iso); // Marca que estamos editando esta imagem
+      
       const img = new Image();
       img.crossOrigin = 'anonymous';
       img.onload = () => {
@@ -510,10 +703,10 @@ const handleEditSaveToggle = () => {
         const baseSnapshot = ctx.getImageData(0, 0, canvas.width, canvas.height);
         setUndoStack([baseSnapshot]);
       };
-      // Use a imagem mais recente como background
-      img.src = savedImages[mostRecentIndex].image;
+      img.src = selectedImage.image;
     } else if (shouldLoadDefault || !backgroundImage) {
       // Se não houver imagens salvas, carrega apenas o odontograma como fundo
+      setEditingImageTimestamp(null); // Não estamos editando uma imagem existente
       const canvas = canvasRef.current;
       const ctx = ctxRef.current;
       if (canvas && ctx) {
@@ -524,6 +717,7 @@ const handleEditSaveToggle = () => {
       }
     } else {
       // Se não houver background definido, carrega o odontograma
+      setEditingImageTimestamp(null);
       const canvas = canvasRef.current;
       const ctx = ctxRef.current;
       if (canvas && ctx) {
@@ -542,6 +736,7 @@ const handleEditSaveToggle = () => {
     if (currentImageIndex > 0) {
       // Desabilita o modo de edição para visualizar a imagem anterior
       setDrawingEnabled(false);
+      setEditingImageTimestamp(null);
       setCurrentImageIndex(prev => prev - 1);
     }
   };
@@ -550,7 +745,46 @@ const handleEditSaveToggle = () => {
     if (currentImageIndex < savedImages.length - 1) {
       // Desabilita o modo de edição para visualizar a próxima imagem
       setDrawingEnabled(false);
+      setEditingImageTimestamp(null);
       setCurrentImageIndex(prev => prev + 1);
+    }
+  };
+
+  // Função para criar uma nova imagem baseada na selecionada
+  const handleCreate = () => {
+    if (savedImages.length > 0 && currentImageIndex >= 0 && currentImageIndex < savedImages.length) {
+      // Carrega a imagem selecionada como base
+      const selectedImage = savedImages[currentImageIndex];
+      setEditingImageTimestamp(null); // Não estamos editando, estamos criando uma nova
+      
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        const canvas = canvasRef.current;
+        const ctx = ctxRef.current;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        // Primeiro desenha o fundo do odontograma
+        drawOdontogramBackground(ctx, canvas);
+        // Depois desenha a imagem selecionada por cima como base
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        // Captura snapshot como base da undoStack
+        const baseSnapshot = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        setUndoStack([baseSnapshot]);
+        // Habilita o modo de edição
+        setDrawingEnabled(true);
+      };
+      img.src = selectedImage.image;
+    } else {
+      // Se não houver imagem selecionada, carrega apenas o odontograma
+      setEditingImageTimestamp(null);
+      const canvas = canvasRef.current;
+      const ctx = ctxRef.current;
+      if (canvas && ctx) {
+        drawOdontogramBackground(ctx, canvas);
+        const baseSnapshot = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        setUndoStack([baseSnapshot]);
+        setDrawingEnabled(true);
+      }
     }
   };
   
@@ -625,6 +859,13 @@ const handleEditSaveToggle = () => {
             </button>
             <button className={styles.toggleEditSave} onClick={handleEditSaveToggle}>
               {drawingEnabled ? "Salvar" : "Editar"}
+            </button>
+            <button 
+              className={styles.createButton} 
+              onClick={handleCreate}
+              disabled={drawingEnabled || savedImages.length === 0}
+            >
+              Criar
             </button>
             <button className={styles.undoButton} onClick={handleUndo} disabled={!drawingEnabled || undoStack.length <= 1}>
               Undo

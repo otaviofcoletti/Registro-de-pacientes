@@ -352,6 +352,46 @@ def save_image():
 
     return jsonify({'message': 'Imagem salva com sucesso', 'filename': filename}), 200
 
+@app.route('/update_image', methods=['PUT'])
+def update_image():
+    data = request.get_json()
+    cpf = data.get('cpf')
+    image_data = data.get('image')
+    timestamp_iso = data.get('timestamp_iso')  # Timestamp da imagem original a ser atualizada
+
+    if not cpf or not image_data or not timestamp_iso:
+        return jsonify({'error': 'cpf, image e timestamp_iso são obrigatórios'}), 400
+
+    try:
+        patient_folder = os.path.join(BASE_FOLDER, cpf)
+        if not os.path.exists(patient_folder):
+            return jsonify({'error': 'Pasta do paciente não encontrada'}), 404
+
+        # Reconstrói o nome do arquivo a partir do timestamp_iso
+        safe_timestamp = timestamp_iso.replace(":", "-")
+        filename = f"{safe_timestamp}.png"
+        filepath = os.path.join(patient_folder, filename)
+
+        if not os.path.exists(filepath):
+            return jsonify({'error': 'Imagem não encontrada'}), 404
+
+        # Remove o cabeçalho (data:image/png;base64,) se existir
+        if "," in image_data:
+            header, encoded = image_data.split(',', 1)
+        else:
+            encoded = image_data
+
+        image_bytes = base64.b64decode(encoded)
+        
+        # Substitui o arquivo existente
+        with open(filepath, "wb") as f:
+            f.write(image_bytes)
+
+        return jsonify({'message': 'Imagem atualizada com sucesso', 'filename': filename}), 200
+    except Exception as e:
+        print(f"Erro ao atualizar imagem: {e}")
+        return jsonify({'error': 'Erro ao atualizar imagem'}), 500
+
 @app.route('/get_images', methods=['GET'])
 def get_images():
     cpf = request.args.get('cpf')
@@ -388,9 +428,41 @@ def get_images():
 
                 images.append({
                     'image': data_url,
-                    'timestamp': friendly_timestamp
+                    'timestamp': friendly_timestamp,
+                    'timestamp_iso': raw  # Timestamp original para ordenação
                 })
     return jsonify({'images': images}), 200
+
+@app.route('/delete_image', methods=['DELETE'])
+def delete_image():
+    cpf = request.args.get('cpf')
+    timestamp_iso = request.args.get('timestamp_iso')
+    
+    if not cpf or not timestamp_iso:
+        return jsonify({'error': 'cpf e timestamp_iso são obrigatórios'}), 400
+    
+    try:
+        patient_folder = os.path.join(BASE_FOLDER, cpf)
+        if not os.path.exists(patient_folder):
+            return jsonify({'error': 'Pasta do paciente não encontrada'}), 404
+        
+        # Reconstrói o nome do arquivo a partir do timestamp_iso
+        # O timestamp_iso vem no formato "2025-12-24T15-11-48.329Z"
+        # Precisamos garantir que está no formato correto para o nome do arquivo
+        safe_timestamp = timestamp_iso.replace(":", "-")
+        filename = f"{safe_timestamp}.png"
+        filepath = os.path.join(patient_folder, filename)
+        
+        if not os.path.exists(filepath):
+            return jsonify({'error': 'Imagem não encontrada'}), 404
+        
+        # Deleta o arquivo
+        os.remove(filepath)
+        
+        return jsonify({'message': 'Imagem deletada com sucesso'}), 200
+    except Exception as e:
+        print(f"Erro ao deletar imagem: {e}")
+        return jsonify({'error': 'Erro ao deletar imagem'}), 500
 
 
 # ========== ROTAS DE ORÇAMENTOS E PAGAMENTOS ==========

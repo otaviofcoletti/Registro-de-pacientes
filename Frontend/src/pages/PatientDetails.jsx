@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import styles from './PatientDetails.module.css';
-import Paint from '../components/PaintComponent.jsx'; // ajuste o caminho conforme necessário
+import Paint from '../components/PaintComponent.jsx';
+
+const API_URL = import.meta.env.VITE_API_URL;
 
 
 export function PatientDetails() {
@@ -17,12 +19,15 @@ export function PatientDetails() {
   });
   const [annotations, setAnnotations] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [images, setImages] = useState([]);
+  const [selectedImageIndex, setSelectedImageIndex] = useState(null);
+  const [galleryExpanded, setGalleryExpanded] = useState(false);
 
   // Fetch patient details
   useEffect(() => {
     const fetchPatientDetails = async () => {
       try {
-        const response = await fetch(`http://127.0.0.1:5000/paciente/${cpf}`);
+        const response = await fetch(`${API_URL}/paciente/${cpf}`);
         if (response.ok) {
           const data = await response.json();
           setPatient(data);
@@ -37,7 +42,95 @@ export function PatientDetails() {
       }
     };
     fetchPatientDetails();
+    fetchImages();
   }, [cpf]);
+  
+  const fetchImages = async () => {
+    try {
+      const response = await fetch(`${API_URL}/get_images?cpf=${cpf}`);
+      if (response.ok) {
+        const data = await response.json();
+        const imagesList = data.images || [];
+        
+        // Ordena as imagens das mais recentes para as mais antigas
+        // Usa timestamp_iso se disponível, senão usa o timestamp formatado
+        const sortedImages = imagesList.sort((a, b) => {
+          try {
+            if (a.timestamp_iso && b.timestamp_iso) {
+              // Converte timestamp ISO para Date para ordenar
+              const dateA = parseTimestampISO(a.timestamp_iso);
+              const dateB = parseTimestampISO(b.timestamp_iso);
+              return dateB - dateA; // Ordem decrescente (mais recente primeiro)
+            } else {
+              // Fallback: usa timestamp formatado
+              const dateA = parseTimestamp(a.timestamp);
+              const dateB = parseTimestamp(b.timestamp);
+              return dateB - dateA;
+            }
+          } catch (e) {
+            // Se não conseguir parsear, mantém a ordem original
+            return 0;
+          }
+        });
+        
+        setImages(sortedImages);
+      }
+    } catch (error) {
+      console.error('Erro ao buscar imagens:', error);
+    }
+  };
+  
+  // Função auxiliar para parsear timestamp ISO (ex: "2025-12-24T15-11-48.329Z")
+  const parseTimestampISO = (timestampISO) => {
+    if (!timestampISO) return new Date(0);
+    try {
+      // Converte "2025-12-24T15-11-48.329Z" para formato ISO válido
+      // Separa data e tempo
+      const parts = timestampISO.split('T');
+      if (parts.length !== 2) return new Date(0);
+      
+      const [datePart, timePart] = parts;
+      
+      // Substitui os dois primeiros hífens do tempo por dois pontos
+      // Usa split e join para substituir apenas os dois primeiros
+      const timeParts = timePart.split('-');
+      if (timeParts.length >= 3) {
+        const hour = timeParts[0];
+        const minute = timeParts[1];
+        const rest = timeParts.slice(2).join('-');
+        const timeFixed = `${hour}:${minute}:${rest}`;
+        
+        // Monta o timestamp ISO válido
+        const isoString = `${datePart}T${timeFixed}`;
+        
+        // Converte 'Z' para '+00:00' para compatibilidade com Date
+        const isoFinal = isoString.endsWith('Z') 
+          ? isoString.replace('Z', '+00:00') 
+          : isoString + '+00:00';
+        
+        return new Date(isoFinal);
+      }
+      return new Date(0);
+    } catch (e) {
+      console.error('Erro ao parsear timestamp ISO:', e);
+      return new Date(0);
+    }
+  };
+  
+  // Função auxiliar para parsear timestamp no formato dd/mm/yyyy HH:MM:SS
+  const parseTimestamp = (timestampStr) => {
+    if (!timestampStr) return new Date(0);
+    
+    // Formato esperado: "dd/mm/yyyy HH:MM:SS"
+    const parts = timestampStr.split(' ');
+    if (parts.length !== 2) return new Date(0);
+    
+    const [datePart, timePart] = parts;
+    const [day, month, year] = datePart.split('/');
+    const [hour, minute, second] = timePart.split(':');
+    
+    return new Date(year, month - 1, day, hour, minute, second);
+  };
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -50,7 +143,7 @@ export function PatientDetails() {
       return;
     }
     try {
-      const response = await fetch(`http://127.0.0.1:5000/paciente/${cpf}/anotacoes`, {
+      const response = await fetch(`${API_URL}/paciente/${cpf}/anotacoes`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(form),
@@ -90,7 +183,7 @@ export function PatientDetails() {
     }
   
     try {
-      const response = await fetch(`http://127.0.0.1:5000/paciente/${cpf}/anotacoes/${annotation.epoch}`, {
+      const response = await fetch(`${API_URL}/paciente/${cpf}/anotacoes/${annotation.epoch}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -146,6 +239,53 @@ export function PatientDetails() {
       console.error('Erro ao enviar requisição de exclusão:', error);
     }
   };
+
+  const handleDeleteImage = async (imageIndex) => {
+    const image = images[imageIndex];
+    
+    // Confirmação antes de deletar
+    const confirmed = window.confirm('Tem certeza que deseja excluir esta imagem? Esta ação não pode ser desfeita.');
+    
+    if (!confirmed) {
+      return;
+    }
+    
+    try {
+      const response = await fetch(
+        `${API_URL}/delete_image?cpf=${cpf}&timestamp_iso=${encodeURIComponent(image.timestamp_iso)}`,
+        { method: 'DELETE' }
+      );
+      
+      if (response.ok) {
+        // Remove a imagem do estado local
+        setImages((prev) => prev.filter((_, i) => i !== imageIndex));
+        
+        // Se a imagem deletada era a selecionada, ajusta o índice
+        if (selectedImageIndex === imageIndex) {
+          if (images.length > 1) {
+            // Se havia mais imagens, seleciona a próxima ou anterior
+            const newIndex = imageIndex < images.length - 1 ? imageIndex : imageIndex - 1;
+            setSelectedImageIndex(newIndex >= 0 ? newIndex : null);
+          } else {
+            setSelectedImageIndex(null);
+          }
+        } else if (selectedImageIndex > imageIndex) {
+          // Se a imagem deletada estava antes da selecionada, ajusta o índice
+          setSelectedImageIndex(selectedImageIndex - 1);
+        }
+        
+        // Recarrega as imagens do backend para garantir sincronização
+        fetchImages();
+        console.log('Imagem deletada com sucesso.');
+      } else {
+        const errorData = await response.json();
+        alert(`Erro ao deletar imagem: ${errorData.error || 'Erro desconhecido'}`);
+      }
+    } catch (error) {
+      console.error('Erro ao enviar requisição de exclusão:', error);
+      alert('Erro ao deletar imagem. Tente novamente.');
+    }
+  };
   
   
 
@@ -176,7 +316,47 @@ export function PatientDetails() {
           Ver Orçamentos e Pagamentos
         </button>
       </div>
-      <Paint cpf={cpf}/>
+      <Paint cpf={cpf} selectedImageIndex={selectedImageIndex} onImagesChange={fetchImages}/>
+      
+      {/* Galeria de Imagens */}
+      {images.length > 0 && (
+        <div className={styles.imageGallery}>
+          <div 
+            className={styles.galleryHeader}
+            onClick={() => setGalleryExpanded(!galleryExpanded)}
+          >
+            <h2 className={styles.subtitle}>Galeria de Imagens ({images.length})</h2>
+            <span className={`${styles.expandIcon} ${galleryExpanded ? styles.expanded : ''}`}>
+              ▼
+            </span>
+          </div>
+          {galleryExpanded && (
+            <div className={styles.galleryGrid}>
+              {images.map((img, index) => (
+                <div
+                  key={index}
+                  className={`${styles.galleryItem} ${selectedImageIndex === index ? styles.selected : ''}`}
+                  onClick={() => setSelectedImageIndex(index)}
+                >
+                  <button
+                    className={styles.deleteImageButton}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDeleteImage(index);
+                    }}
+                    title="Excluir imagem"
+                  >
+                    ×
+                  </button>
+                  <img src={img.image} alt={`Imagem ${index + 1}`} />
+                  <div className={styles.galleryTimestamp}>{img.timestamp}</div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+      
       <div className={styles.annotations}>
         <h2 className={styles.subtitle}>Anotações Dentárias</h2>
         <table className={styles.annotationTable}>

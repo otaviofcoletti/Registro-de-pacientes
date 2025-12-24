@@ -117,3 +117,129 @@
 .addButton:hover {
   background: var(--light-vinho);
 }
+
+.imageGallery {
+  margin-top: 2rem;
+  margin-bottom: 2rem;
+  background: var(--white);
+  border-radius: 8px;
+  padding: 1rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.galleryHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  user-select: none;
+  padding: 0.5rem;
+  border-radius: 4px;
+  transition: background 0.2s;
+}
+
+.galleryHeader:hover {
+  background: var(--gray-100);
+}
+
+.expandIcon {
+  font-size: 1.2rem;
+  color: var(--vinho);
+  transition: transform 0.3s;
+  display: inline-block;
+}
+
+.expandIcon.expanded {
+  transform: rotate(180deg);
+}
+
+.galleryGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-top: 1rem;
+  animation: slideDown 0.3s ease-out;
+  overflow: hidden;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    max-height: 0;
+  }
+  to {
+    opacity: 1;
+    max-height: 2000px;
+  }
+}
+
+.galleryItem {
+  position: relative;
+  border: 2px solid var(--gray-300);
+  border-radius: 8px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: all 0.3s;
+  background: var(--white);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.galleryItem:hover {
+  border-color: var(--vinho);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.galleryItem.selected {
+  border-color: var(--vinho);
+  border-width: 3px;
+  box-shadow: 0 0 0 2px rgba(139, 0, 0, 0.2);
+}
+
+.galleryItem img {
+  width: 100%;
+  height: 150px;
+  object-fit: cover;
+  display: block;
+}
+
+.galleryTimestamp {
+  padding: 0.5rem;
+  background: var(--gray-100);
+  text-align: center;
+  font-size: 0.9rem;
+  color: var(--gray-700);
+}
+
+.deleteImageButton {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: rgba(220, 53, 69, 0.9);
+  color: var(--white);
+  border: 2px solid var(--white);
+  font-size: 1.5rem;
+  font-weight: bold;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  padding: 0;
+  transition: all 0.2s;
+  z-index: 10;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.deleteImageButton:hover {
+  background: rgba(220, 53, 69, 1);
+  transform: scale(1.1);
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.3);
+}
+
+.deleteImageButton:active {
+  transform: scale(0.95);
+}
