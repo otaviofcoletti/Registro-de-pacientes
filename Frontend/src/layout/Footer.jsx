@@ -4,7 +4,7 @@ export function Footer() {
   return (
     <footer className={styles.footer}>
       <div className={styles.content}>
-        <p>&copy; 2025 Sua Empresa. Todos os direitos reservados.</p>
+        <p>&copy; 2026 Pró Odonto. Todos os direitos reservados.</p>
         <ul className={styles.links}>
           <li><a href="/sobre">Sobre</a></li>
           <li><a href="/politica">Política de Privacidade</a></li>

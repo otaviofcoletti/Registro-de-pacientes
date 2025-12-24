@@ -2,6 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import styles from './PatientList.module.css';
 const API_URL = import.meta.env.VITE_API_URL;
+
+// Função para remover acentos e normalizar texto
+const removeAccents = (str) => {
+  return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+};
+
 export function PatientList() {
   const [search, setSearch] = useState('');
   const [patients, setPatients] = useState([]);
@@ -28,12 +34,29 @@ export function PatientList() {
   }, []);
 
   const handleSearch = (e) => {
-    const value = e.target.value.toLowerCase();
+    const value = e.target.value;
     setSearch(value);
 
-    const suggestions = patients.filter((patient) =>
-      patient.nome.toLowerCase().includes(value)
-    );
+    // Verifica se o valor contém apenas números (busca por CPF)
+    const isNumeric = /^\d+$/.test(value);
+    
+    let suggestions;
+    if (isNumeric && value.length > 0) {
+      // Busca por CPF
+      suggestions = patients.filter((patient) =>
+        patient.cpf.includes(value)
+      );
+    } else if (value.length > 0) {
+      // Busca por nome (case insensitive e sem acentos)
+      const searchValue = removeAccents(value);
+      suggestions = patients.filter((patient) =>
+        removeAccents(patient.nome).includes(searchValue)
+      );
+    } else {
+      // Se estiver vazio, mostra todos os pacientes
+      suggestions = patients;
+    }
+    
     setFilteredPatients(suggestions);
   };
 

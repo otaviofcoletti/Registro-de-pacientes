@@ -3,7 +3,6 @@ import { useParams, useNavigate } from 'react-router-dom';
 import styles from './PatientDetails.module.css';
 import Paint from '../components/PaintComponent.jsx'; // ajuste o caminho conforme necessário
 
-const API_URL = import.meta.env.VITE_API_URL;
 
 export function PatientDetails() {
   const { cpf } = useParams();
@@ -12,39 +11,33 @@ export function PatientDetails() {
   const [form, setForm] = useState({
     date: new Date().toISOString().split('T')[0],
     tooth: '',
+    face: 'Não se aplica',
     note: '',
     epoch: Date.now(),
   });
   const [annotations, setAnnotations] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
   // Fetch patient details
   useEffect(() => {
     const fetchPatientDetails = async () => {
       try {
-        const response = await fetch(`${API_URL}/paciente/${cpf}`);
+        const response = await fetch(`http://127.0.0.1:5000/paciente/${cpf}`);
         if (response.ok) {
           const data = await response.json();
           setPatient(data);
           setAnnotations(data.treatments);
         } else {
-          const errorData = await response.json();
-          console.error('Erro ao buscar detalhes do paciente:', errorData.error || 'Erro desconhecido');
-          if (response.status === 404) {
-            alert('Paciente não encontrado.');
-            navigate('/pacientes');
-          }
+          console.error('Erro ao buscar detalhes do paciente.');
         }
       } catch (error) {
         console.error('Erro:', error);
-        alert('Erro ao buscar detalhes do paciente. Tente novamente.');
       } finally {
         setLoading(false);
       }
     };
     fetchPatientDetails();
-  }, [cpf, navigate]);
+  }, [cpf]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -57,7 +50,7 @@ export function PatientDetails() {
       return;
     }
     try {
-      const response = await fetch(`${API_URL}/paciente/${cpf}/anotacoes`, {
+      const response = await fetch(`http://127.0.0.1:5000/paciente/${cpf}/anotacoes`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(form),
@@ -67,6 +60,7 @@ export function PatientDetails() {
         setForm({
           date: new Date().toISOString().split('T')[0],
           tooth: '',
+          face: 'Não se aplica',
           note: '',
           epoch: Date.now(),
         });
@@ -90,7 +84,7 @@ export function PatientDetails() {
     const annotation = annotations[index];
     console.log('Salvando anotação:', annotation);
     // Validar os campos necessários antes de enviar a requisição
-    if (!annotation.date || !annotation.tooth || !annotation.note || !annotation.epoch) {
+    if (!annotation.date || (annotation.tooth !== 'boca_inteira' && !annotation.tooth) || !annotation.note || !annotation.epoch) {
       console.error('Campos obrigatórios estão faltando na anotação.');
       return;
     }
@@ -102,6 +96,7 @@ export function PatientDetails() {
         body: JSON.stringify({
           data: annotation.date,         // Garantir que o nome do campo é "data" no back-end
           numero_dente: annotation.tooth, // Alterar para o campo correto no banco de dados
+          face_dente: annotation.face || 'Não se aplica', // Adicionar face do dente
           anotacao: annotation.note,     // Alterar para o campo correto no banco de dados
         }),
       });
@@ -151,25 +146,6 @@ export function PatientDetails() {
       console.error('Erro ao enviar requisição de exclusão:', error);
     }
   };
-
-  const handleDeletePatient = async () => {
-    try {
-      const response = await fetch(`${API_URL}/pacientes/${cpf}`, {
-        method: 'DELETE'
-      });
-
-      if (response.ok) {
-        // Redireciona para a lista de pacientes após exclusão bem-sucedida
-        navigate('/pacientes');
-      } else {
-        const errorData = await response.json();
-        alert(`Erro ao excluir paciente: ${errorData.error || 'Erro desconhecido'}`);
-      }
-    } catch (error) {
-      console.error('Erro ao excluir paciente:', error);
-      alert('Erro ao excluir paciente. Tente novamente.');
-    }
-  };
   
   
 
@@ -195,9 +171,6 @@ export function PatientDetails() {
         <p><strong>Convênio:</strong> {patient.convenio}</p>
       </div>
       <button className={styles.backButton} onClick={() => navigate(`/editar-paciente/${cpf}`)}>Editar Ficha</button>
-      <button className={styles.backButton} onClick={() => navigate(`/pagamentos/${cpf}`)} style={{ marginLeft: '1rem' }}>
-        Ver Orçamentos e Pagamentos
-      </button>
       <Paint cpf={cpf}/>
       <div className={styles.annotations}>
         <h2 className={styles.subtitle}>Anotações Dentárias</h2>
@@ -206,6 +179,7 @@ export function PatientDetails() {
             <tr className={styles.tableHeader}>
               <th>Data</th>
               <th>Dente</th>
+              <th>Face</th>
               <th>Observação</th>
               <th>Ação</th>
             </tr>
@@ -223,9 +197,20 @@ export function PatientDetails() {
               <td>
                 <select name="tooth" value={form.tooth} onChange={handleInputChange}>
                   <option value="">Selecione o dente</option>
+                  <option value="boca_inteira">Boca inteira</option>
                   {Array.from({ length: 32 }, (_, i) => (
-                    <option key={i} value={i + 1}>Dente {i + 1}</option>
+                    <option key={i} value={i + 1}>{i + 1}</option>
                   ))}
+                </select>
+              </td>
+              <td>
+                <select name="face" value={form.face} onChange={handleInputChange}>
+                  <option value="Não se aplica">Não se aplica</option>
+                  <option value="Vestibular">Vestibular</option>
+                  <option value="Lingual">Lingual</option>
+                  <option value="Mesial">Mesial</option>
+                  <option value="Distal">Distal</option>
+                  <option value="Oclusal">Oclusal</option>
                 </select>
               </td>
               <td>
@@ -262,12 +247,30 @@ export function PatientDetails() {
                       onChange={(e) => handleAnnotationChange(idx, 'tooth', e.target.value)}
                     >
                       <option value="">Selecione o dente</option>
+                      <option value="boca_inteira">Boca inteira</option>
                       {Array.from({ length: 32 }, (_, i) => (
-                        <option key={i} value={i + 1}>Dente {i + 1}</option>
+                        <option key={i} value={i + 1}>{i + 1}</option>
                       ))}
                     </select>
                   ) : (
-                    a.tooth
+                    a.tooth === 'boca_inteira' ? 'Boca inteira' : a.tooth
+                  )}
+                </td>
+                <td>
+                  {a.isEditing ? (
+                    <select
+                      value={a.face || 'Não se aplica'}
+                      onChange={(e) => handleAnnotationChange(idx, 'face', e.target.value)}
+                    >
+                      <option value="Não se aplica">Não se aplica</option>
+                      <option value="Vestibular">Vestibular</option>
+                      <option value="Lingual">Lingual</option>
+                      <option value="Mesial">Mesial</option>
+                      <option value="Distal">Distal</option>
+                      <option value="Oclusal">Oclusal</option>
+                    </select>
+                  ) : (
+                    a.face || 'Não se aplica'
                   )}
                 </td>
                 <td>
@@ -310,43 +313,7 @@ export function PatientDetails() {
           </tbody>
         </table>
       </div>
-      <div className={styles.buttonContainer}>
-        <button className={styles.deleteButton} onClick={() => setShowDeleteDialog(true)}>
-          Excluir Ficha
-        </button>
-        <button className={styles.backButton} onClick={() => navigate('/pacientes')}>Voltar para Lista</button>
-      </div>
-      
-      {/* Diálogo de confirmação de exclusão */}
-      {showDeleteDialog && (
-        <div className={styles.dialogOverlay} onClick={() => setShowDeleteDialog(false)}>
-          <div className={styles.dialogContent} onClick={(e) => e.stopPropagation()}>
-            <h2 className={styles.dialogTitle}>Confirmar Exclusão</h2>
-            <p className={styles.dialogMessage}>
-              Tem certeza que deseja excluir a ficha do paciente <strong>{patient?.name}</strong>?
-              <br />
-              Esta ação não pode ser desfeita.
-            </p>
-            <div className={styles.dialogButtons}>
-              <button 
-                className={styles.dialogCancelButton} 
-                onClick={() => setShowDeleteDialog(false)}
-              >
-                Cancelar
-              </button>
-              <button 
-                className={styles.dialogConfirmButton} 
-                onClick={() => {
-                  setShowDeleteDialog(false);
-                  handleDeletePatient();
-                }}
-              >
-                Excluir
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <button className={styles.backButton} onClick={() => navigate('/pacientes')}>Voltar para Lista</button>
     </div>
   );
 }

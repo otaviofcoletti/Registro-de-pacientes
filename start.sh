@@ -140,3 +140,4 @@ echo ""
 # Aguardar processos
 wait
 
+
