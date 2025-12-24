@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import styles from './CadastroPaciente.module.css';
 
+const API_URL = import.meta.env.VITE_API_URL;
+
 const EditPatient = () => {
     const { cpf } = useParams();
     const navigate = useNavigate();
@@ -18,7 +20,7 @@ const EditPatient = () => {
     useEffect(() => {
         const fetchPatientDetails = async () => {
             try {
-                const response = await fetch(`http://127.0.0.1:5000/paciente/${cpf}`);
+                const response = await fetch(`${API_URL}/paciente/${cpf}`);
                 if (response.ok) {
                     const data = await response.json();
                     setPatient(data);

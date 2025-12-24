@@ -214,3 +214,21 @@
 .dialogConfirmButton:hover {
   background: #c82333;
 }
+
+.priceCell {
+  display: inline-block;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  transition: background 0.2s;
+}
+
+.priceCell:hover {
+  background: var(--gray-200);
+}
+
+.newAnnotationRow input[type="number"] {
+  width: 90%;
+  padding: 0.5rem;
+  border: 1px solid var(--gray-300);
+  border-radius: 4px;
+}

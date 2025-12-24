@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import styles from './PatientList.module.css';
-
+const API_URL = import.meta.env.VITE_API_URL;
 export function PatientList() {
   const [search, setSearch] = useState('');
   const [patients, setPatients] = useState([]);
@@ -12,7 +12,7 @@ export function PatientList() {
   useEffect(() => {
     const fetchPatients = async () => {
       try {
-        const response = await fetch('http://127.0.0.1:5000/pacientes');
+        const response = await fetch(`${API_URL}/pacientes`);
         if (response.ok) {
           const data = await response.json();
           setPatients(data);

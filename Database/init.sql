@@ -28,3 +28,23 @@ CREATE TABLE imagens (
     PRIMARY KEY (id_paciente, epoch_insercao),
     FOREIGN KEY (id_paciente) REFERENCES paciente (cpf)
 );
+
+-- Criar tabela orcamentos
+CREATE TABLE orcamentos (
+    id SERIAL PRIMARY KEY,
+    id_paciente VARCHAR(11) NOT NULL,
+    data_orcamento DATE NOT NULL,
+    preco DECIMAL(10, 2) NOT NULL,
+    descricao TEXT,
+    FOREIGN KEY (id_paciente) REFERENCES paciente (cpf) ON DELETE CASCADE
+);
+
+-- Criar tabela pagamentos
+CREATE TABLE pagamentos (
+    id SERIAL PRIMARY KEY,
+    id_orcamento INT NOT NULL,
+    data_pagamento DATE NOT NULL,
+    valor_parcela DECIMAL(10, 2) NOT NULL,
+    meio_pagamento TEXT,
+    FOREIGN KEY (id_orcamento) REFERENCES orcamentos (id) ON DELETE CASCADE
+);

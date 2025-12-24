@@ -1,6 +1,10 @@
 import React, { useState } from 'react';
 import styles from './CadastroPaciente.module.css';
 
+const API_URL = import.meta.env.VITE_API_URL;
+
+
+
 const CadastroPaciente = () => {
     const [form, setForm] = useState({
         cpf: '',
@@ -20,7 +24,7 @@ const CadastroPaciente = () => {
         e.preventDefault();
 
         try {
-            const response = await fetch('http://localhost:5000/pacientes', {
+            const response = await fetch(`${API_URL}/pacientes`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

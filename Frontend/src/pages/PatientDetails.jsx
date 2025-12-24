@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import styles from './PatientDetails.module.css';
 import Paint from '../components/PaintComponent.jsx'; // ajuste o caminho conforme necessário
 
+const API_URL = import.meta.env.VITE_API_URL;
 
 export function PatientDetails() {
   const { cpf } = useParams();
@@ -22,22 +23,28 @@ export function PatientDetails() {
   useEffect(() => {
     const fetchPatientDetails = async () => {
       try {
-        const response = await fetch(`http://127.0.0.1:5000/paciente/${cpf}`);
+        const response = await fetch(`${API_URL}/paciente/${cpf}`);
         if (response.ok) {
           const data = await response.json();
           setPatient(data);
           setAnnotations(data.treatments);
         } else {
-          console.error('Erro ao buscar detalhes do paciente.');
+          const errorData = await response.json();
+          console.error('Erro ao buscar detalhes do paciente:', errorData.error || 'Erro desconhecido');
+          if (response.status === 404) {
+            alert('Paciente não encontrado.');
+            navigate('/pacientes');
+          }
         }
       } catch (error) {
         console.error('Erro:', error);
+        alert('Erro ao buscar detalhes do paciente. Tente novamente.');
       } finally {
         setLoading(false);
       }
     };
     fetchPatientDetails();
-  }, [cpf]);
+  }, [cpf, navigate]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -50,7 +57,7 @@ export function PatientDetails() {
       return;
     }
     try {
-      const response = await fetch(`http://127.0.0.1:5000/paciente/${cpf}/anotacoes`, {
+      const response = await fetch(`${API_URL}/paciente/${cpf}/anotacoes`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(form),
@@ -147,7 +154,7 @@ export function PatientDetails() {
 
   const handleDeletePatient = async () => {
     try {
-      const response = await fetch(`http://127.0.0.1:5000/pacientes/${cpf}`, {
+      const response = await fetch(`${API_URL}/pacientes/${cpf}`, {
         method: 'DELETE'
       });
 
@@ -188,6 +195,9 @@ export function PatientDetails() {
         <p><strong>Convênio:</strong> {patient.convenio}</p>
       </div>
       <button className={styles.backButton} onClick={() => navigate(`/editar-paciente/${cpf}`)}>Editar Ficha</button>
+      <button className={styles.backButton} onClick={() => navigate(`/pagamentos/${cpf}`)} style={{ marginLeft: '1rem' }}>
+        Ver Orçamentos e Pagamentos
+      </button>
       <Paint cpf={cpf}/>
       <div className={styles.annotations}>
         <h2 className={styles.subtitle}>Anotações Dentárias</h2>

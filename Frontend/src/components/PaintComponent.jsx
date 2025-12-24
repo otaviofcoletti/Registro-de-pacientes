@@ -1,5 +1,6 @@
 import React, { useRef, useEffect, useState } from 'react';
 import styles from './PaintComponent.module.css';
+const API_URL = import.meta.env.VITE_API_URL;
 
 const Paint = ({ cpf }) => {
   const canvasRef = useRef(null);
@@ -57,7 +58,7 @@ const Paint = ({ cpf }) => {
   useEffect(() => {
     if (cpf) {
       // Recupera imagens do backend
-      fetch(`http://localhost:5000/get_images?cpf=${cpf}`)
+      fetch(`${API_URL}/get_images?cpf=${cpf}`)
         .then(response => response.json())
         .then(data => {
           if (data && data.images && data.images.length > 0) {
@@ -265,21 +266,70 @@ const Paint = ({ cpf }) => {
   // Inicia o desenho (apenas se estiver em modo edição)
   const startDrawing = (e) => {
     if (!drawingEnabled) return;
+    
+    const pointerEvent = e.nativeEvent;
+    
+    // Para dispositivos com stylus, verifica se há pressão aplicada
+    // Se for um evento de stylus/pen e não houver pressão, não inicia o desenho
+    if (pointerEvent.pointerType === 'pen') {
+      // Verifica se há pressão (pressure > 0)
+      // pressure pode ser 0 quando a caneta está apenas pairando sobre a tela (hover)
+      // Se pressure não estiver disponível, usa buttons como fallback
+      const hasPressure = typeof pointerEvent.pressure !== 'undefined' 
+        ? pointerEvent.pressure > 0 
+        : pointerEvent.buttons > 0;
+      
+      if (!hasPressure) {
+        return; // Caneta não está pressionada, não inicia desenho
+      }
+    }
+    
+    // Para touch, verifica se é um toque válido (buttons > 0 indica pressão)
+    if (pointerEvent.pointerType === 'touch') {
+      if (pointerEvent.buttons === 0) {
+        return; // Toque sem pressão, não inicia desenho
+      }
+    }
+    
     setIsDrawing(true);
-    setXPrevious(e.nativeEvent.offsetX);
-    setYPrevious(e.nativeEvent.offsetY);
+    setXPrevious(pointerEvent.offsetX);
+    setYPrevious(pointerEvent.offsetY);
     
     // Captura o snapshot atual (que já deve ter o fundo + desenhos anteriores)
     setSnapshot(ctxRef.current.getImageData(0, 0, canvasRef.current.width, canvasRef.current.height));
     
     // Inicia um novo caminho para o desenho
     ctxRef.current.beginPath();
-    ctxRef.current.moveTo(e.nativeEvent.offsetX, e.nativeEvent.offsetY);
+    ctxRef.current.moveTo(pointerEvent.offsetX, pointerEvent.offsetY);
   };
   
   // Função para desenhar durante o movimento do ponteiro
   const draw = (e) => {
     if (!isDrawing || !drawingEnabled || !snapshot) return;
+    
+    const pointerEvent = e.nativeEvent;
+    
+    // Para dispositivos com stylus, verifica se há pressão aplicada
+    // Se for um evento de stylus/pen e não houver pressão, não desenha
+    if (pointerEvent.pointerType === 'pen') {
+      // Verifica se há pressão (pressure > 0)
+      // pressure pode ser 0 quando a caneta está apenas pairando sobre a tela (hover)
+      // Se pressure não estiver disponível, usa buttons como fallback
+      const hasPressure = typeof pointerEvent.pressure !== 'undefined' 
+        ? pointerEvent.pressure > 0 
+        : pointerEvent.buttons > 0;
+      
+      if (!hasPressure) {
+        return; // Caneta não está pressionada, não desenha
+      }
+    }
+    
+    // Para touch, verifica se é um toque válido (buttons > 0 indica pressão)
+    if (pointerEvent.pointerType === 'touch') {
+      if (pointerEvent.buttons === 0) {
+        return; // Toque sem pressão, não desenha
+      }
+    }
     
     // Restaura o snapshot (fundo + desenhos anteriores)
     ctxRef.current.putImageData(snapshot, 0, 0);
@@ -287,7 +337,7 @@ const Paint = ({ cpf }) => {
     if (selectedTool === 'brush') {
       // Modo normal: desenha por cima
       ctxRef.current.globalCompositeOperation = 'source-over';
-      ctxRef.current.lineTo(e.nativeEvent.offsetX, e.nativeEvent.offsetY);
+      ctxRef.current.lineTo(pointerEvent.offsetX, pointerEvent.offsetY);
       ctxRef.current.stroke();
     } else if (selectedTool === 'eraser') {
       // Restaura o snapshot primeiro
@@ -296,7 +346,7 @@ const Paint = ({ cpf }) => {
       // Usa destination-out para apagar apenas onde a borracha passa
       ctxRef.current.globalCompositeOperation = 'destination-out';
       ctxRef.current.strokeStyle = 'rgba(0,0,0,1)'; // Cor opaca para garantir que apague
-      ctxRef.current.lineTo(e.nativeEvent.offsetX, e.nativeEvent.offsetY);
+      ctxRef.current.lineTo(pointerEvent.offsetX, pointerEvent.offsetY);
       ctxRef.current.stroke();
       
       // Imediatamente após apagar, redesenha o fundo do odontograma por baixo
@@ -379,7 +429,7 @@ const handleEditSaveToggle = () => {
     // NÃO limpa o canvas - mantém a imagem editada visível
 
     // Chamada à rota do backend para salvar a imagem
-    fetch('http://localhost:5000/save_image', {
+    fetch(`${API_URL}/save_image`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -393,7 +443,7 @@ const handleEditSaveToggle = () => {
         // Aguarda um pouco para garantir que o arquivo foi escrito no disco
         setTimeout(() => {
           // Busca as imagens atualizadas do backend
-          fetch(`http://localhost:5000/get_images?cpf=${cpf}`)
+          fetch(`${API_URL}/get_images?cpf=${cpf}`)
             .then(response => response.json())
             .then(backendData => {
               if (backendData && backendData.images && backendData.images.length > 0) {
@@ -588,7 +638,12 @@ const handleEditSaveToggle = () => {
             onPointerDown={startDrawing}
             onPointerMove={draw}
             onPointerUp={stopDrawing}
-            style={{ pointerEvents: drawingEnabled ? 'auto' : 'none' }}
+            onPointerLeave={stopDrawing}
+            onPointerCancel={stopDrawing}
+            style={{ 
+              pointerEvents: drawingEnabled ? 'auto' : 'none',
+              touchAction: 'none' // Previne comportamentos padrão de toque
+            }}
           ></canvas>
           <div className={styles.controlsBelow}>
             <button

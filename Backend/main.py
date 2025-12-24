@@ -149,13 +149,16 @@ def delete_paciente(cpf):
 @app.route('/paciente/<cpf>', methods=['GET'])
 def get_patient_details(cpf):
     try:
+        # Remove formatação do CPF (pontos e traços)
+        cpf_clean = cpf.replace('.', '').replace('-', '')
+        
         conn = get_db_connection()
         # Usando RealDictCursor para retornar resultados como dicionários
         cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
         # Busca os dados do paciente
         query = "SELECT * FROM paciente WHERE cpf = %s"
-        cursor.execute(query, (cpf,))
+        cursor.execute(query, (cpf_clean,))
         patient = cursor.fetchone()
 
         if not patient:
@@ -168,7 +171,7 @@ def get_patient_details(cpf):
             WHERE id_paciente = %s
             ORDER BY data DESC
         """
-        cursor.execute(treatments_query, (cpf,))
+        cursor.execute(treatments_query, (cpf_clean,))
         treatments = cursor.fetchall() or []
         # Monta a resposta
         patient_details = {
@@ -203,6 +206,9 @@ def get_patient_details(cpf):
 @app.route('/paciente/<cpf>/anotacoes', methods=['POST'])
 def add_annotation(cpf):
     try:
+        # Remove formatação do CPF (pontos e traços)
+        cpf_clean = cpf.replace('.', '').replace('-', '')
+        
         data = request.json
         numero_dente = data.get('tooth')
         data_tratamento = data.get('date')
@@ -217,7 +223,7 @@ def add_annotation(cpf):
 
         # Confirma que o paciente existe
         patient_query = "SELECT 1 FROM paciente WHERE cpf = %s"
-        cursor.execute(patient_query, (cpf,))
+        cursor.execute(patient_query, (cpf_clean,))
         if not cursor.fetchone():
             return jsonify({'error': 'Paciente não encontrado.'}), 404
 
@@ -226,7 +232,7 @@ def add_annotation(cpf):
             INSERT INTO informacao_tratamentos (id_paciente, epoch_criacao, numero_dente, data, anotacao)
             VALUES (%s, %s, %s, %s, %s)
         """
-        cursor.execute(insert_query, (cpf, epoch_criacao, numero_dente, data_tratamento, anotacao))
+        cursor.execute(insert_query, (cpf_clean, epoch_criacao, numero_dente, data_tratamento, anotacao))
         conn.commit()
         conn.close()
 
@@ -238,6 +244,9 @@ def add_annotation(cpf):
 
 @app.route('/paciente/<cpf>/anotacoes/<int:annotation_id>', methods=['PUT'])
 def update_annotation(cpf, annotation_id):
+    # Remove formatação do CPF (pontos e traços)
+    cpf_clean = cpf.replace('.', '').replace('-', '')
+    
     data = request.json
     try:
         conn = get_db_connection()
@@ -254,7 +263,7 @@ def update_annotation(cpf, annotation_id):
         if not all(key in data for key in ['data', 'numero_dente', 'anotacao']):
             return jsonify({'error': 'Faltam campos obrigatórios no corpo da requisição.'}), 400
 
-        cursor.execute(query, (data['data'], data['numero_dente'], data['anotacao'], cpf, annotation_id))
+        cursor.execute(query, (data['data'], data['numero_dente'], data['anotacao'], cpf_clean, annotation_id))
         conn.commit()
         cursor.close()
         conn.close()
@@ -266,6 +275,9 @@ def update_annotation(cpf, annotation_id):
 
 @app.route('/paciente/<cpf>/anotacoes/<int:annotation_id>', methods=['DELETE'])
 def delete_annotation(cpf, annotation_id):
+    # Remove formatação do CPF (pontos e traços)
+    cpf_clean = cpf.replace('.', '').replace('-', '')
+    
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
@@ -276,7 +288,7 @@ def delete_annotation(cpf, annotation_id):
             FROM informacao_tratamentos 
             WHERE id_paciente = %s AND epoch_criacao = %s
         """
-        cursor.execute(query_check, (cpf, annotation_id))
+        cursor.execute(query_check, (cpf_clean, annotation_id))
         if not cursor.fetchone():
             return jsonify({'error': 'Anotação não encontrada.'}), 404
 
@@ -285,7 +297,7 @@ def delete_annotation(cpf, annotation_id):
             DELETE FROM informacao_tratamentos 
             WHERE id_paciente = %s AND epoch_criacao = %s
         """
-        cursor.execute(query_delete, (cpf, annotation_id))
+        cursor.execute(query_delete, (cpf_clean, annotation_id))
         conn.commit()
 
         cursor.close()
@@ -379,6 +391,268 @@ def get_images():
                     'timestamp': friendly_timestamp
                 })
     return jsonify({'images': images}), 200
+
+
+# ========== ROTAS DE ORÇAMENTOS E PAGAMENTOS ==========
+
+# Endpoint para buscar todos os orçamentos de um paciente com seus pagamentos
+@app.route('/paciente/<cpf>/orcamentos', methods=['GET'])
+def get_orcamentos(cpf):
+    try:
+        # Remove formatação do CPF (pontos e traços)
+        cpf_clean = cpf.replace('.', '').replace('-', '')
+        
+        conn = get_db_connection()
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        
+        # Verifica se o paciente existe
+        patient_query = "SELECT 1 FROM paciente WHERE cpf = %s"
+        cursor.execute(patient_query, (cpf_clean,))
+        if not cursor.fetchone():
+            cursor.close()
+            conn.close()
+            return jsonify({'error': 'Paciente não encontrado.'}), 404
+        
+        # Busca todos os orçamentos
+        orcamentos_query = """
+            SELECT id, data_orcamento, preco, descricao
+            FROM orcamentos
+            WHERE id_paciente = %s
+            ORDER BY data_orcamento DESC, id DESC
+        """
+        cursor.execute(orcamentos_query, (cpf_clean,))
+        orcamentos = cursor.fetchall() or []
+        
+        # Para cada orçamento, busca os pagamentos
+        resultado = []
+        for orcamento in orcamentos:
+            pagamentos_query = """
+                SELECT id, data_pagamento, valor_parcela, meio_pagamento
+                FROM pagamentos
+                WHERE id_orcamento = %s
+                ORDER BY data_pagamento DESC
+            """
+            cursor.execute(pagamentos_query, (orcamento['id'],))
+            pagamentos = cursor.fetchall() or []
+            
+            resultado.append({
+                'id': orcamento['id'],
+                'data_orcamento': str(orcamento['data_orcamento']),
+                'preco': float(orcamento['preco']),
+                'descricao': orcamento['descricao'] or '',
+                'pagamentos': [dict(p) for p in pagamentos]
+            })
+        
+        cursor.close()
+        conn.close()
+        
+        return jsonify(resultado), 200
+    except Exception as e:
+        print(f"Error: {e}")
+        return jsonify({'error': 'Erro ao buscar orçamentos.'}), 500
+
+# Endpoint para adicionar um orçamento
+@app.route('/paciente/<cpf>/orcamentos', methods=['POST'])
+def add_orcamento(cpf):
+    try:
+        # Remove formatação do CPF (pontos e traços)
+        cpf_clean = cpf.replace('.', '').replace('-', '')
+        
+        data = request.json
+        data_orcamento = data.get('data_orcamento')
+        preco = data.get('preco')
+        descricao = data.get('descricao', '')
+        
+        if not data_orcamento or not preco:
+            return jsonify({'error': 'Data e preço são obrigatórios.'}), 400
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Verifica se o paciente existe
+        check_query = "SELECT 1 FROM paciente WHERE cpf = %s"
+        cursor.execute(check_query, (cpf_clean,))
+        if not cursor.fetchone():
+            return jsonify({'error': 'Paciente não encontrado.'}), 404
+        
+        # Insere o orçamento
+        insert_query = """
+            INSERT INTO orcamentos (id_paciente, data_orcamento, preco, descricao)
+            VALUES (%s, %s, %s, %s)
+            RETURNING id
+        """
+        cursor.execute(insert_query, (cpf_clean, data_orcamento, preco, descricao))
+        orcamento_id = cursor.fetchone()[0]
+        conn.commit()
+        
+        cursor.close()
+        conn.close()
+        
+        return jsonify({'message': 'Orçamento adicionado com sucesso.', 'id': orcamento_id}), 201
+    except Exception as e:
+        print(f"Error: {e}")
+        return jsonify({'error': 'Erro ao adicionar orçamento.'}), 500
+
+# Endpoint para atualizar um orçamento
+@app.route('/paciente/<cpf>/orcamentos/<int:orcamento_id>', methods=['PUT'])
+def update_orcamento(cpf, orcamento_id):
+    try:
+        # Remove formatação do CPF (pontos e traços)
+        cpf_clean = cpf.replace('.', '').replace('-', '')
+        
+        data = request.json
+        data_orcamento = data.get('data_orcamento')
+        preco = data.get('preco')
+        descricao = data.get('descricao', '')
+        
+        if not data_orcamento or not preco:
+            return jsonify({'error': 'Data e preço são obrigatórios.'}), 400
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        query = """
+            UPDATE orcamentos
+            SET data_orcamento = %s, preco = %s, descricao = %s
+            WHERE id = %s AND id_paciente = %s
+        """
+        cursor.execute(query, (data_orcamento, preco, descricao, orcamento_id, cpf_clean))
+        
+        if cursor.rowcount == 0:
+            return jsonify({'error': 'Orçamento não encontrado.'}), 404
+        
+        conn.commit()
+        cursor.close()
+        conn.close()
+        
+        return jsonify({'message': 'Orçamento atualizado com sucesso.'}), 200
+    except Exception as e:
+        print(f"Error: {e}")
+        return jsonify({'error': 'Erro ao atualizar orçamento.'}), 500
+
+# Endpoint para deletar um orçamento
+@app.route('/paciente/<cpf>/orcamentos/<int:orcamento_id>', methods=['DELETE'])
+def delete_orcamento(cpf, orcamento_id):
+    try:
+        # Remove formatação do CPF (pontos e traços)
+        cpf_clean = cpf.replace('.', '').replace('-', '')
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        query = """
+            DELETE FROM orcamentos
+            WHERE id = %s AND id_paciente = %s
+        """
+        cursor.execute(query, (orcamento_id, cpf_clean))
+        
+        if cursor.rowcount == 0:
+            return jsonify({'error': 'Orçamento não encontrado.'}), 404
+        
+        conn.commit()
+        cursor.close()
+        conn.close()
+        
+        return jsonify({'message': 'Orçamento deletado com sucesso.'}), 200
+    except Exception as e:
+        print(f"Error: {e}")
+        return jsonify({'error': 'Erro ao deletar orçamento.'}), 500
+
+# Endpoint para adicionar um pagamento a um orçamento
+@app.route('/orcamentos/<int:orcamento_id>/pagamentos', methods=['POST'])
+def add_pagamento(orcamento_id):
+    try:
+        data = request.json
+        data_pagamento = data.get('data_pagamento')
+        valor_parcela = data.get('valor_parcela')
+        meio_pagamento = data.get('meio_pagamento', '')
+        
+        if not data_pagamento or not valor_parcela:
+            return jsonify({'error': 'Data e valor são obrigatórios.'}), 400
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Verifica se o orçamento existe
+        check_query = "SELECT 1 FROM orcamentos WHERE id = %s"
+        cursor.execute(check_query, (orcamento_id,))
+        if not cursor.fetchone():
+            return jsonify({'error': 'Orçamento não encontrado.'}), 404
+        
+        # Insere o pagamento
+        insert_query = """
+            INSERT INTO pagamentos (id_orcamento, data_pagamento, valor_parcela, meio_pagamento)
+            VALUES (%s, %s, %s, %s)
+        """
+        cursor.execute(insert_query, (orcamento_id, data_pagamento, valor_parcela, meio_pagamento))
+        conn.commit()
+        
+        cursor.close()
+        conn.close()
+        
+        return jsonify({'message': 'Pagamento adicionado com sucesso.'}), 201
+    except Exception as e:
+        print(f"Error: {e}")
+        return jsonify({'error': 'Erro ao adicionar pagamento.'}), 500
+
+# Endpoint para atualizar um pagamento
+@app.route('/orcamentos/<int:orcamento_id>/pagamentos/<int:pagamento_id>', methods=['PUT'])
+def update_pagamento(orcamento_id, pagamento_id):
+    try:
+        data = request.json
+        data_pagamento = data.get('data_pagamento')
+        valor_parcela = data.get('valor_parcela')
+        meio_pagamento = data.get('meio_pagamento', '')
+        
+        if not data_pagamento or not valor_parcela:
+            return jsonify({'error': 'Data e valor são obrigatórios.'}), 400
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        query = """
+            UPDATE pagamentos
+            SET data_pagamento = %s, valor_parcela = %s, meio_pagamento = %s
+            WHERE id = %s AND id_orcamento = %s
+        """
+        cursor.execute(query, (data_pagamento, valor_parcela, meio_pagamento, pagamento_id, orcamento_id))
+        
+        if cursor.rowcount == 0:
+            return jsonify({'error': 'Pagamento não encontrado.'}), 404
+        
+        conn.commit()
+        cursor.close()
+        conn.close()
+        
+        return jsonify({'message': 'Pagamento atualizado com sucesso.'}), 200
+    except Exception as e:
+        print(f"Error: {e}")
+        return jsonify({'error': 'Erro ao atualizar pagamento.'}), 500
+
+# Endpoint para deletar um pagamento
+@app.route('/orcamentos/<int:orcamento_id>/pagamentos/<int:pagamento_id>', methods=['DELETE'])
+def delete_pagamento(orcamento_id, pagamento_id):
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        query = """
+            DELETE FROM pagamentos
+            WHERE id = %s AND id_orcamento = %s
+        """
+        cursor.execute(query, (pagamento_id, orcamento_id))
+        
+        if cursor.rowcount == 0:
+            return jsonify({'error': 'Pagamento não encontrado.'}), 404
+        
+        conn.commit()
+        cursor.close()
+        conn.close()
+        
+        return jsonify({'message': 'Pagamento deletado com sucesso.'}), 200
+    except Exception as e:
+        print(f"Error: {e}")
+        return jsonify({'error': 'Erro ao deletar pagamento.'}), 500
 
 
 if __name__ == '__main__':

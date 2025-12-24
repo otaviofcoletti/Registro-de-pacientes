@@ -1,0 +1,180 @@
+.container {
+  padding: 2rem;
+  max-width: auto;
+  margin-top: 5%;
+  margin-left: auto;
+  margin-right: auto;
+  background: var(--gray-100);
+  border-radius: 8px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.title {
+  font-size: 2rem;
+  color: var(--vinho);
+  text-align: center;
+  margin-bottom: 1.5rem;
+}
+
+.backButton {
+  background: var(--vinho);
+  color: var(--white);
+  border: none;
+  border-radius: 4px;
+  padding: 0.8rem 1.5rem;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background 0.3s;
+  margin-bottom: 1.5rem;
+}
+
+.backButton:hover {
+  background: var(--light-vinho);
+}
+
+.novoOrcamento {
+  background: var(--white);
+  padding: 1.5rem;
+  border-radius: 8px;
+  margin-bottom: 2rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.subtitle {
+  font-size: 1.5rem;
+  color: var(--vinho);
+  margin-bottom: 1rem;
+}
+
+.formRow {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.input {
+  padding: 0.5rem;
+  border: 1px solid var(--gray-300);
+  border-radius: 4px;
+  font-size: 1rem;
+  flex: 1;
+  min-width: 150px;
+}
+
+.inputInline {
+  width: 90%;
+  padding: 0.5rem;
+  border: 1px solid var(--gray-300);
+  border-radius: 4px;
+}
+
+.orcamentos {
+  margin-top: 2rem;
+}
+
+.orcamentoCard {
+  background: var(--white);
+  border: 2px solid var(--gray-300);
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.orcamentoRow {
+  margin-bottom: 1.5rem;
+}
+
+.orcamentoTable {
+  width: 100%;
+  border-collapse: collapse;
+  border: 1px solid var(--gray-300);
+  background: var(--white);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.orcamentoTable th,
+.orcamentoTable td {
+  text-align: center;
+  padding: 0.8rem;
+  border: 1px solid var(--gray-300);
+}
+
+.pagamentosSection {
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 2px solid var(--gray-300);
+}
+
+.pagamentosTitle {
+  font-size: 1.2rem;
+  color: var(--vinho);
+  margin-bottom: 1rem;
+}
+
+.pagamentoTable {
+  width: 100%;
+  border-collapse: collapse;
+  border: 1px solid var(--gray-300);
+  background: var(--white);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.pagamentoTable th,
+.pagamentoTable td {
+  text-align: center;
+  padding: 0.8rem;
+  border: 1px solid var(--gray-300);
+}
+
+.tableHeader {
+  background: var(--vinho);
+  color: var(--white);
+}
+
+.newPagamentoRow input {
+  width: 90%;
+  padding: 0.5rem;
+  border: 1px solid var(--gray-300);
+  border-radius: 4px;
+}
+
+.pagamentoRow td {
+  padding: 0.8rem;
+}
+
+.pagamentoRow input {
+  width: 90%;
+  padding: 0.5rem;
+  border: 1px solid var(--gray-300);
+  border-radius: 4px;
+}
+
+.addButton {
+  background: var(--vinho);
+  color: var(--white);
+  font-size: 1rem;
+  padding: 0.8rem 0.8rem;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.3s;
+  margin: 0.2rem;
+}
+
+.addButton:hover {
+  background: var(--light-vinho);
+}
+
+.valorPago {
+  color: #28a745;
+  font-weight: bold;
+}
+
+.valorPendente {
+  color: #dc3545;
+  font-weight: bold;
+}
