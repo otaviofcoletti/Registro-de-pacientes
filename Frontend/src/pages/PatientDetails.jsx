@@ -170,7 +170,12 @@ export function PatientDetails() {
         <p><strong>Endereço:</strong> {patient.address}</p>
         <p><strong>Convênio:</strong> {patient.convenio}</p>
       </div>
-      <button className={styles.backButton} onClick={() => navigate(`/editar-paciente/${cpf}`)}>Editar Ficha</button>
+      <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem' }}>
+        <button className={styles.backButton} onClick={() => navigate(`/editar-paciente/${cpf}`)}>Editar Ficha</button>
+        <button className={styles.backButton} onClick={() => navigate(`/pagamentos/${cpf}`)}>
+          Ver Orçamentos e Pagamentos
+        </button>
+      </div>
       <Paint cpf={cpf}/>
       <div className={styles.annotations}>
         <h2 className={styles.subtitle}>Anotações Dentárias</h2>

@@ -9,6 +9,7 @@ import PatientList from "./pages/PatientList";
 import PatientDetails from "./pages/PatientDetails";
 import Paint from "./pages/Paint";
 import EditPatient from "./pages/EditPatient";
+import Pagamentos from "./pages/Pagamentos";
 function App() {
 
   return (
@@ -22,6 +23,7 @@ function App() {
             <Route path="/ficha/:cpf" element={<PatientDetails />} />
             <Route path="/editar-paciente/:cpf" element={<EditPatient />} />
             <Route path="/paint" element={<Paint />} />
+            <Route path="/pagamentos/:cpf" element={<Pagamentos />} />
           </Routes>
         <Footer/>
       </Router>
