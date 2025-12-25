@@ -1,26 +1,30 @@
 import '../global.css';
 import React from 'react';
 import Button from '../components/Button';
-import styles from './Home.module.css'; // Crie um novo arquivo App.module.css
+import styles from './Home.module.css';
 import { useNavigate } from 'react-router-dom';
-function Home() {
 
-  const navigate = useNavigate(); // Instancia o hook useNavigate
+function Home() {
+  const navigate = useNavigate();
 
   const handleAddNew = () => {
-    navigate('/cadastro'); // Redireciona para a página de cadastro
+    navigate('/cadastro');
   };
 
   const handleSearch = () => {
-    navigate('/pacientes'); // Redireciona para a página de cadastro
+    navigate('/pacientes');
   };
 
   return (
+    <div className={styles.container}>
+      <div className={styles.logoContainer}>
+        <img src="/icons/logo.jpeg" alt="Logo Pró Odonto" className={styles.logo} />
+      </div>
       <div className={styles.buttonContainer}>
         <Button text="Adicionar novo" onClick={handleAddNew} />
         <Button text="Buscar paciente" onClick={handleSearch} />
       </div>
-
+    </div>
   )
 }
 

@@ -13,9 +13,10 @@ import Pagamentos from "./pages/Pagamentos";
 function App() {
 
   return (
-    <div>      
-      <Router>
+    <Router>
+      <div className={styles.app}>
         <Header />
+        <main className={styles.mainContent}>
           <Routes>
             <Route exact path="/" element={<Home />}/>
             <Route path="/cadastro" element={<CadastroPaciente />}/>
@@ -25,10 +26,10 @@ function App() {
             <Route path="/paint" element={<Paint />} />
             <Route path="/pagamentos/:cpf" element={<Pagamentos />} />
           </Routes>
+        </main>
         <Footer/>
-      </Router>
-    </div>
-
+      </div>
+    </Router>
   )
 }
 

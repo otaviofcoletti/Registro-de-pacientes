@@ -467,7 +467,7 @@ def delete_image():
 
 # ========== ROTAS DE ORÇAMENTOS E PAGAMENTOS ==========
 
-# Endpoint para buscar todos os orçamentos de um paciente com seus pagamentos
+# Endpoint para buscar todos os orçamentos de um paciente com seus itens e pagamentos
 @app.route('/paciente/<cpf>/orcamentos', methods=['GET'])
 def get_orcamentos(cpf):
     try:
@@ -487,7 +487,7 @@ def get_orcamentos(cpf):
         
         # Busca todos os orçamentos
         orcamentos_query = """
-            SELECT id, data_orcamento, preco, descricao
+            SELECT id, data_orcamento
             FROM orcamentos
             WHERE id_paciente = %s
             ORDER BY data_orcamento DESC, id DESC
@@ -495,9 +495,23 @@ def get_orcamentos(cpf):
         cursor.execute(orcamentos_query, (cpf_clean,))
         orcamentos = cursor.fetchall() or []
         
-        # Para cada orçamento, busca os pagamentos
+        # Para cada orçamento, busca os itens e pagamentos
         resultado = []
         for orcamento in orcamentos:
+            # Busca os itens do orçamento
+            itens_query = """
+                SELECT id, data_item, preco, descricao
+                FROM orcamento_itens
+                WHERE id_orcamento = %s
+                ORDER BY id ASC
+            """
+            cursor.execute(itens_query, (orcamento['id'],))
+            itens = cursor.fetchall() or []
+            
+            # Calcula o total dos itens
+            total_orcamento = sum(float(item['preco']) for item in itens)
+            
+            # Busca os pagamentos
             pagamentos_query = """
                 SELECT id, data_pagamento, valor_parcela, meio_pagamento
                 FROM pagamentos
@@ -507,11 +521,21 @@ def get_orcamentos(cpf):
             cursor.execute(pagamentos_query, (orcamento['id'],))
             pagamentos = cursor.fetchall() or []
             
+            # Converte itens para dicionários com campos formatados
+            itens_formatados = []
+            for item in itens:
+                itens_formatados.append({
+                    'id': item['id'],
+                    'data_item': str(item['data_item']),
+                    'preco': float(item['preco']),
+                    'descricao': item['descricao'] or ''
+                })
+            
             resultado.append({
                 'id': orcamento['id'],
                 'data_orcamento': str(orcamento['data_orcamento']),
-                'preco': float(orcamento['preco']),
-                'descricao': orcamento['descricao'] or '',
+                'itens': itens_formatados,
+                'total': float(total_orcamento),
                 'pagamentos': [dict(p) for p in pagamentos]
             })
         
@@ -532,11 +556,13 @@ def add_orcamento(cpf):
         
         data = request.json
         data_orcamento = data.get('data_orcamento')
-        preco = data.get('preco')
-        descricao = data.get('descricao', '')
+        itens = data.get('itens', [])
         
-        if not data_orcamento or not preco:
-            return jsonify({'error': 'Data e preço são obrigatórios.'}), 400
+        if not data_orcamento:
+            return jsonify({'error': 'Data do orçamento é obrigatória.'}), 400
+        
+        if not itens or len(itens) == 0:
+            return jsonify({'error': 'É necessário adicionar pelo menos um item ao orçamento.'}), 400
         
         conn = get_db_connection()
         cursor = conn.cursor()
@@ -549,14 +575,32 @@ def add_orcamento(cpf):
         
         # Insere o orçamento
         insert_query = """
-            INSERT INTO orcamentos (id_paciente, data_orcamento, preco, descricao)
-            VALUES (%s, %s, %s, %s)
+            INSERT INTO orcamentos (id_paciente, data_orcamento)
+            VALUES (%s, %s)
             RETURNING id
         """
-        cursor.execute(insert_query, (cpf_clean, data_orcamento, preco, descricao))
+        cursor.execute(insert_query, (cpf_clean, data_orcamento))
         orcamento_id = cursor.fetchone()[0]
-        conn.commit()
         
+        # Insere os itens do orçamento
+        for item in itens:
+            item_data = item.get('data_item', data_orcamento)
+            item_preco = item.get('preco')
+            item_descricao = item.get('descricao', '')
+            
+            if not item_preco:
+                conn.rollback()
+                cursor.close()
+                conn.close()
+                return jsonify({'error': 'Todos os itens devem ter um preço.'}), 400
+            
+            insert_item_query = """
+                INSERT INTO orcamento_itens (id_orcamento, data_item, preco, descricao)
+                VALUES (%s, %s, %s, %s)
+            """
+            cursor.execute(insert_item_query, (orcamento_id, item_data, item_preco, item_descricao))
+        
+        conn.commit()
         cursor.close()
         conn.close()
         
@@ -574,24 +618,26 @@ def update_orcamento(cpf, orcamento_id):
         
         data = request.json
         data_orcamento = data.get('data_orcamento')
-        preco = data.get('preco')
-        descricao = data.get('descricao', '')
         
-        if not data_orcamento or not preco:
-            return jsonify({'error': 'Data e preço são obrigatórios.'}), 400
+        if not data_orcamento:
+            return jsonify({'error': 'Data do orçamento é obrigatória.'}), 400
         
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        query = """
+        # Verifica se o orçamento existe e pertence ao paciente
+        check_query = "SELECT 1 FROM orcamentos WHERE id = %s AND id_paciente = %s"
+        cursor.execute(check_query, (orcamento_id, cpf_clean))
+        if not cursor.fetchone():
+            return jsonify({'error': 'Orçamento não encontrado.'}), 404
+        
+        # Atualiza a data do orçamento
+        update_query = """
             UPDATE orcamentos
-            SET data_orcamento = %s, preco = %s, descricao = %s
+            SET data_orcamento = %s
             WHERE id = %s AND id_paciente = %s
         """
-        cursor.execute(query, (data_orcamento, preco, descricao, orcamento_id, cpf_clean))
-        
-        if cursor.rowcount == 0:
-            return jsonify({'error': 'Orçamento não encontrado.'}), 404
+        cursor.execute(update_query, (data_orcamento, orcamento_id, cpf_clean))
         
         conn.commit()
         cursor.close()
@@ -725,6 +771,104 @@ def delete_pagamento(orcamento_id, pagamento_id):
     except Exception as e:
         print(f"Error: {e}")
         return jsonify({'error': 'Erro ao deletar pagamento.'}), 500
+
+# Endpoint para adicionar um item a um orçamento
+@app.route('/orcamentos/<int:orcamento_id>/itens', methods=['POST'])
+def add_item_orcamento(orcamento_id):
+    try:
+        data = request.json
+        data_item = data.get('data_item')
+        preco = data.get('preco')
+        descricao = data.get('descricao', '')
+        
+        if not data_item or not preco:
+            return jsonify({'error': 'Data e preço são obrigatórios.'}), 400
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Verifica se o orçamento existe
+        check_query = "SELECT 1 FROM orcamentos WHERE id = %s"
+        cursor.execute(check_query, (orcamento_id,))
+        if not cursor.fetchone():
+            return jsonify({'error': 'Orçamento não encontrado.'}), 404
+        
+        # Insere o item
+        insert_query = """
+            INSERT INTO orcamento_itens (id_orcamento, data_item, preco, descricao)
+            VALUES (%s, %s, %s, %s)
+            RETURNING id
+        """
+        cursor.execute(insert_query, (orcamento_id, data_item, preco, descricao))
+        item_id = cursor.fetchone()[0]
+        conn.commit()
+        
+        cursor.close()
+        conn.close()
+        
+        return jsonify({'message': 'Item adicionado com sucesso.', 'id': item_id}), 201
+    except Exception as e:
+        print(f"Error: {e}")
+        return jsonify({'error': 'Erro ao adicionar item.'}), 500
+
+# Endpoint para atualizar um item de orçamento
+@app.route('/orcamentos/<int:orcamento_id>/itens/<int:item_id>', methods=['PUT'])
+def update_item_orcamento(orcamento_id, item_id):
+    try:
+        data = request.json
+        data_item = data.get('data_item')
+        preco = data.get('preco')
+        descricao = data.get('descricao', '')
+        
+        if not data_item or not preco:
+            return jsonify({'error': 'Data e preço são obrigatórios.'}), 400
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        query = """
+            UPDATE orcamento_itens
+            SET data_item = %s, preco = %s, descricao = %s
+            WHERE id = %s AND id_orcamento = %s
+        """
+        cursor.execute(query, (data_item, preco, descricao, item_id, orcamento_id))
+        
+        if cursor.rowcount == 0:
+            return jsonify({'error': 'Item não encontrado.'}), 404
+        
+        conn.commit()
+        cursor.close()
+        conn.close()
+        
+        return jsonify({'message': 'Item atualizado com sucesso.'}), 200
+    except Exception as e:
+        print(f"Error: {e}")
+        return jsonify({'error': 'Erro ao atualizar item.'}), 500
+
+# Endpoint para deletar um item de orçamento
+@app.route('/orcamentos/<int:orcamento_id>/itens/<int:item_id>', methods=['DELETE'])
+def delete_item_orcamento(orcamento_id, item_id):
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        query = """
+            DELETE FROM orcamento_itens
+            WHERE id = %s AND id_orcamento = %s
+        """
+        cursor.execute(query, (item_id, orcamento_id))
+        
+        if cursor.rowcount == 0:
+            return jsonify({'error': 'Item não encontrado.'}), 404
+        
+        conn.commit()
+        cursor.close()
+        conn.close()
+        
+        return jsonify({'message': 'Item deletado com sucesso.'}), 200
+    except Exception as e:
+        print(f"Error: {e}")
+        return jsonify({'error': 'Erro ao deletar item.'}), 500
 
 
 if __name__ == '__main__':

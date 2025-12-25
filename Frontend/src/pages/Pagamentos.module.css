@@ -1,19 +1,23 @@
 .container {
-  padding: 2rem;
-  max-width: auto;
-  margin-top: 5%;
-  margin-left: auto;
-  margin-right: auto;
-  background: var(--gray-100);
-  border-radius: 8px;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  padding: 1rem;
+  max-width: 100%;
+  margin: 0 auto;
+  background: var(--white);
+}
+
+.headerSection {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 2px solid var(--gray-300);
 }
 
 .title {
-  font-size: 2rem;
+  font-size: 1.5rem;
   color: var(--vinho);
-  text-align: center;
-  margin-bottom: 1.5rem;
+  margin: 0;
 }
 
 .backButton {
@@ -21,161 +25,330 @@
   color: var(--white);
   border: none;
   border-radius: 4px;
-  padding: 0.8rem 1.5rem;
-  font-size: 1rem;
+  padding: 0.5rem 1rem;
+  font-size: 0.9rem;
   cursor: pointer;
   transition: background 0.3s;
-  margin-bottom: 1.5rem;
 }
 
 .backButton:hover {
   background: var(--light-vinho);
 }
 
-.novoOrcamento {
-  background: var(--white);
-  padding: 1.5rem;
-  border-radius: 8px;
-  margin-bottom: 2rem;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-.subtitle {
-  font-size: 1.5rem;
-  color: var(--vinho);
+/* Formulário de novo orçamento */
+.formSection {
   margin-bottom: 1rem;
+  padding: 1rem;
+  background: var(--gray-100);
+  border-radius: 4px;
+  border: 1px solid var(--gray-300);
 }
 
-.formRow {
+.formHeader {
   display: flex;
-  gap: 1rem;
   align-items: center;
-  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 0.5rem;
 }
 
-.input {
-  padding: 0.5rem;
-  border: 1px solid var(--gray-300);
-  border-radius: 4px;
+.formHeader h3 {
+  margin: 0;
   font-size: 1rem;
+  color: var(--gray-900);
+}
+
+.itemsForm {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.itemFormRow {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.formInput {
+  padding: 0.4rem;
+  border: 1px solid var(--gray-300);
+  border-radius: 3px;
+  font-size: 0.9rem;
   flex: 1;
-  min-width: 150px;
+  min-width: 120px;
 }
 
-.inputInline {
-  width: 90%;
-  padding: 0.5rem;
-  border: 1px solid var(--gray-300);
-  border-radius: 4px;
+.formActions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
 }
 
-.orcamentos {
-  margin-top: 2rem;
-}
-
-.orcamentoCard {
-  background: var(--white);
-  border: 2px solid var(--gray-300);
-  border-radius: 8px;
-  padding: 1.5rem;
-  margin-bottom: 2rem;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-.orcamentoRow {
-  margin-bottom: 1.5rem;
-}
-
-.orcamentoTable {
-  width: 100%;
-  border-collapse: collapse;
-  border: 1px solid var(--gray-300);
-  background: var(--white);
-  border-radius: 8px;
-  overflow: hidden;
-}
-
-.orcamentoTable th,
-.orcamentoTable td {
-  text-align: center;
-  padding: 0.8rem;
-  border: 1px solid var(--gray-300);
-}
-
-.pagamentosSection {
-  margin-top: 1.5rem;
-  padding-top: 1.5rem;
-  border-top: 2px solid var(--gray-300);
-}
-
-.pagamentosTitle {
-  font-size: 1.2rem;
-  color: var(--vinho);
-  margin-bottom: 1rem;
-}
-
-.pagamentoTable {
-  width: 100%;
-  border-collapse: collapse;
-  border: 1px solid var(--gray-300);
-  background: var(--white);
-  border-radius: 8px;
-  overflow: hidden;
-}
-
-.pagamentoTable th,
-.pagamentoTable td {
-  text-align: center;
-  padding: 0.8rem;
-  border: 1px solid var(--gray-300);
-}
-
-.tableHeader {
+.smallButton {
   background: var(--vinho);
   color: var(--white);
-}
-
-.newPagamentoRow input {
-  width: 90%;
-  padding: 0.5rem;
-  border: 1px solid var(--gray-300);
-  border-radius: 4px;
-}
-
-.pagamentoRow td {
-  padding: 0.8rem;
-}
-
-.pagamentoRow input {
-  width: 90%;
-  padding: 0.5rem;
-  border: 1px solid var(--gray-300);
-  border-radius: 4px;
-}
-
-.addButton {
-  background: var(--vinho);
-  color: var(--white);
-  font-size: 1rem;
-  padding: 0.8rem 0.8rem;
   border: none;
-  border-radius: 4px;
+  border-radius: 3px;
+  padding: 0.4rem 0.8rem;
+  font-size: 0.9rem;
   cursor: pointer;
+  white-space: nowrap;
   transition: background 0.3s;
-  margin: 0.2rem;
 }
 
-.addButton:hover {
+.smallButton:hover {
   background: var(--light-vinho);
 }
 
+.removeButton {
+  background: #dc3545;
+  color: var(--white);
+  border: none;
+  border-radius: 3px;
+  padding: 0.4rem 0.6rem;
+  font-size: 1rem;
+  cursor: pointer;
+  min-width: 32px;
+  transition: background 0.3s;
+}
+
+.removeButton:hover {
+  background: #c82333;
+}
+
+/* Wrapper da tabela com scroll */
+.tableWrapper {
+  overflow-x: auto;
+  border: 1px solid #e8eaed;
+  background: var(--white);
+}
+
+/* Tabela estilo Excel */
+.excelTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+  background: var(--white);
+}
+
+.excelTable th,
+.excelTable td {
+  padding: 0.5rem;
+  border: 1px solid #e8eaed;
+  text-align: left;
+  white-space: nowrap;
+}
+
+/* Colunas com larguras específicas */
+.colType {
+  width: 120px;
+  font-weight: 600;
+}
+
+.colDate {
+  width: 120px;
+}
+
+.colDesc {
+  width: 250px;
+  min-width: 150px;
+}
+
+.colValue {
+  width: 120px;
+  text-align: right;
+}
+
+.colPayment {
+  width: 150px;
+}
+
+.colActions {
+  width: 100px;
+  text-align: center;
+}
+
+/* Linhas de cabeçalho do orçamento */
+.orcamentoHeaderRow {
+  background: #f5f8fa;
+  border-top: 1px solid #d0d7de;
+}
+
+.orcamentoHeader {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  justify-content: space-between;
+}
+
+.orcamentoDate {
+  flex: 1;
+  font-weight: normal;
+}
+
+.orcamentoActions {
+  display: flex;
+  gap: 0.25rem;
+}
+
+/* Linhas de itens */
+.itemRow {
+  background: #fafbfc;
+}
+
+.itemRow:hover {
+  background: #f6f8fa;
+}
+
+.newItemRow {
+  background: #fefcf5;
+}
+
+.newItemRow:hover {
+  background: #fef9eb;
+}
+
+/* Linhas de totais */
+.totalsRow {
+  background: #f0f9f4;
+  border-top: 1px solid #c6e6d0;
+  font-weight: 600;
+}
+
+.summaryRow {
+  background: #f7fbf8;
+  border-bottom: 1px solid #d4e8d9;
+}
+
+.summaryLabel {
+  margin-right: 0.5rem;
+  font-weight: 500;
+}
+
+.totalValue {
+  font-size: 1.1rem;
+}
+
+/* Cabeçalho da seção de pagamentos */
+.pagamentosHeaderRow {
+  background: #f0f7fc;
+  border-top: 1px solid #c8dce8;
+  font-weight: 600;
+}
+
+.pagamentosHeaderRow td {
+  padding: 0.75rem 0.5rem;
+  border-bottom: 1px solid #c8dce8;
+}
+
+/* Linhas de pagamentos */
+.pagamentoRow {
+  background: var(--white);
+}
+
+.pagamentoRow:hover {
+  background: #fafafa;
+}
+
+.newPagamentoRow {
+  background: #fef8f0;
+}
+
+.newPagamentoRow:hover {
+  background: #fef4e6;
+}
+
+/* Linha espaçadora */
+.spacerRow {
+  height: 1rem;
+  background: transparent;
+}
+
+.spacerRow td {
+  border: none;
+}
+
+/* Inputs dentro das células */
+.cellInput {
+  width: 100%;
+  padding: 0.3rem;
+  border: 1px solid #4a90e2;
+  border-radius: 2px;
+  font-size: 0.9rem;
+  background: var(--white);
+}
+
+.cellInput:focus {
+  outline: 2px solid #4a90e2;
+  outline-offset: -2px;
+}
+
+/* Valores */
+.valueCell {
+  font-family: 'Courier New', monospace;
+  text-align: right;
+}
+
 .valorPago {
-  color: #28a745;
-  font-weight: bold;
+  color: #2d8659;
+  font-weight: 600;
+  font-size: 1rem;
 }
 
 .valorPendente {
-  color: #dc3545;
-  font-weight: bold;
+  color: #c73e3e;
+  font-weight: 700;
+  font-size: 1.3rem;
 }
 
+/* Botões de ação pequenos */
+.iconButton {
+  background: transparent;
+  border: 1px solid var(--gray-300);
+  border-radius: 3px;
+  padding: 0.2rem 0.5rem;
+  font-size: 0.9rem;
+  cursor: pointer;
+  margin: 0 0.1rem;
+  color: var(--gray-700);
+  transition: all 0.2s;
+  min-width: 28px;
+}
+
+.iconButton:hover {
+  background: var(--gray-200);
+  border-color: var(--gray-400);
+}
+
+.iconButton:active {
+  background: var(--gray-300);
+}
+
+/* Responsividade */
+@media (max-width: 768px) {
+  .formSection {
+    padding: 0.5rem;
+  }
+
+  .itemFormRow {
+    flex-wrap: wrap;
+  }
+  
+  .formInput {
+    min-width: 100px;
+  }
+  
+  .tableWrapper {
+    font-size: 0.8rem;
+  }
+  
+  .excelTable th,
+  .excelTable td {
+    padding: 0.3rem;
+  }
+
+  .orcamentoHeader {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+}

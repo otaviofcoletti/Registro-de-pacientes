@@ -6,6 +6,7 @@
     padding: 1rem 2rem; /* Ajuste conforme necessário */
     color: var(--gray-300);
     font-size: 1.5rem;
+    flex-shrink: 0;
   }
   
   .logo {

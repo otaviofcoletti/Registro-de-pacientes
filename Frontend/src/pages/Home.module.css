@@ -1,12 +1,35 @@
-/* App.module.css */
+/* Home.module.css */
 
-  
+.container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: calc(100vh - 200px);
+  background-color: var(--light-yellow);
+  padding: 2rem;
+}
+
+.logoContainer {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 3rem;
+}
+
+.logo {
+  max-width: 300px;
+  max-height: 200px;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  border-radius: 8px;
+}
+
 .buttonContainer {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    /*margin: 10rem;  Espaçamento entre o Header e os botões */
-    margin-top: 15rem;
-    margin-bottom: 18rem;
-  }
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+}
   
