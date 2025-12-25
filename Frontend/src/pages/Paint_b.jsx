@@ -223,19 +223,19 @@ const Paint = () => {
     <div className={styles.container}>
       <section className={styles.tools}>
         <div className={styles.row}>
-          <label className={styles.title}>Shapes</label>
+          <label className={styles.title}>Formas</label>
           <ul className={styles.options}>
             <li className={`${styles.option} ${styles.tool}`} id="circle">
               <img src="/icons/circle.svg" alt="Circle Icon" />
-              <span>Circle</span>
+              <span>Círculo</span>
             </li>
             <li className={`${styles.option} ${styles.tool}`} id="rectangle">
               <img src="/icons/rectangle.svg" alt="Rectangle Icon" />
-              <span>Rectangle</span>
+              <span>Retângulo</span>
             </li>
             <li className={`${styles.option} ${styles.tool}`} id="triangle">
               <img src="/icons/triangle.svg" alt="Triangle Icon" />
-              <span>Triangle</span>
+              <span>Triângulo</span>
             </li>
             <li className={styles.option}>
               <input type="checkbox" id="fill-color" onChange={handleFillChange}/>
@@ -248,11 +248,11 @@ const Paint = () => {
           <ul className={styles.options}>
             <li className={`${styles.option} ${styles.active} ${styles.tool}`} id="brush">
               <img src="/icons/brush.svg" alt="brush Icon" />
-              <span>Brush</span>
+              <span>Pincel</span>
             </li>
             <li className= {`${styles.option} ${styles.tool}`} id="eraser">
               <img src="/icons/eraser.svg" alt="eraser Icon" />
-              <span>Eraser</span>
+              <span>Borracha</span>
             </li>
             <li className={styles.option}>
               <input type="range" id="size-slider" 
@@ -265,7 +265,7 @@ const Paint = () => {
         </div>
 
         <div className={`${styles.row} ${styles.colors}`}>
-          <label className={styles.title}>Colors</label>
+          <label className={styles.title}>Cores</label>
           <ul className={styles.options}>
             <li className={styles.option}> </li>
             <li className={`${styles.option} ${styles.selected}`}> </li>
@@ -279,8 +279,8 @@ const Paint = () => {
         </div>
         
         <div className={`${styles.row} ${styles.buttons}`}>
-          <button className={styles.clearcanvas} onClick={clearCanvas} >Clear Canvas</button>
-          <button className={styles.saveimg}  onClick={saveImage} >Save Image</button>
+          <button className={styles.clearcanvas} onClick={clearCanvas} >Limpar Tela</button>
+          <button className={styles.saveimg}  onClick={saveImage} >Salvar Imagem</button>
           <input type="file" accept="image/*" onChange={handleBackgroundChange} />
   
         </div>

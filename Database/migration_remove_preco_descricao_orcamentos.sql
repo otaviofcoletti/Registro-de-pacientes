@@ -62,3 +62,4 @@ CREATE TABLE IF NOT EXISTS pagamentos (
     FOREIGN KEY (id_orcamento) REFERENCES orcamentos (id) ON DELETE CASCADE
 );
 
+

@@ -78,6 +78,7 @@
   min-width: 120px;
 }
 
+
 .formActions {
   display: flex;
   gap: 0.5rem;
@@ -279,6 +280,28 @@
 }
 
 .cellInput:focus {
+  outline: 2px solid #4a90e2;
+  outline-offset: -2px;
+}
+
+.descricaoContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  width: 100%;
+}
+
+.descricaoSelect {
+  width: 100%;
+  padding: 0.3rem;
+  border: 1px solid #4a90e2;
+  border-radius: 2px;
+  font-size: 0.9rem;
+  background: var(--white);
+  cursor: pointer;
+}
+
+.descricaoSelect:focus {
   outline: 2px solid #4a90e2;
   outline-offset: -2px;
 }

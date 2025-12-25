@@ -2,7 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import styles from './Pagamentos.module.css';
 
-const API_URL = import.meta.env.VITE_API_URL;
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
+// Debug: mostra qual URL está sendo usada
+console.log('[DEBUG] API_URL configurada:', API_URL);
+console.log('[DEBUG] VITE_API_URL do .env:', import.meta.env.VITE_API_URL);
+console.log('[DEBUG] Todas as variáveis de ambiente:', import.meta.env);
 
 export function Pagamentos() {
   const { cpf } = useParams();
@@ -22,7 +27,9 @@ export function Pagamentos() {
 
   const fetchOrcamentos = async () => {
     try {
-      const response = await fetch(`${API_URL}/paciente/${cpf}/orcamentos`);
+      const url = `${API_URL}/paciente/${cpf}/orcamentos`;
+      console.log('[DEBUG Pagamentos] Fazendo requisição GET para:', url);
+      const response = await fetch(url);
       if (response.ok) {
         const data = await response.json();
         setOrcamentos(data);
@@ -41,6 +48,7 @@ export function Pagamentos() {
       setLoading(false);
     }
   };
+
 
   const handleOrcamentoChange = (e) => {
     const { name, value } = e.target;
@@ -619,6 +627,7 @@ export function Pagamentos() {
                             value={item.descricao || ''}
                             onChange={(e) => handleItemFieldChange(oIdx, iIdx, 'descricao', e.target.value)}
                             className={styles.cellInput}
+                            placeholder="Descrição"
                           />
                         ) : (
                           item.descricao || '-'

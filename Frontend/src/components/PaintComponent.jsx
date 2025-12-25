@@ -1,6 +1,12 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import styles from './PaintComponent.module.css';
-const API_URL = import.meta.env.VITE_API_URL;
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
+// Debug: mostra qual URL está sendo usada
+if (typeof window !== 'undefined') {
+  console.log('[DEBUG PaintComponent] API_URL:', API_URL);
+  console.log('[DEBUG PaintComponent] VITE_API_URL:', import.meta.env.VITE_API_URL);
+}
 
 const Paint = ({ cpf, selectedImageIndex, onImagesChange, imagesCount }) => {
   const canvasRef = useRef(null);
@@ -889,19 +895,19 @@ const handleEditSaveToggle = () => {
       <div className={styles.container}>
         <section className={styles.tools}>
           <div className={styles.row}>
-            <label className={styles.title}>Shapes</label>
+            <label className={styles.title}>Formas</label>
             <ul className={styles.options}>
               <li className={`${styles.option} ${styles.tool}`} id="circle">
                 <img src="/icons/circle.svg" alt="Circle Icon" />
-                <span>Circle</span>
+                <span>Círculo</span>
               </li>
               <li className={`${styles.option} ${styles.tool}`} id="rectangle">
                 <img src="/icons/rectangle.svg" alt="Rectangle Icon" />
-                <span>Rectangle</span>
+                <span>Retângulo</span>
               </li>
               <li className={`${styles.option} ${styles.tool}`} id="triangle">
                 <img src="/icons/triangle.svg" alt="Triangle Icon" />
-                <span>Triangle</span>
+                <span>Triângulo</span>
               </li>
               <li className={styles.option}>
                 <input type="checkbox" id="fill-color" onChange={handleFillChange} />
@@ -910,15 +916,15 @@ const handleEditSaveToggle = () => {
             </ul>
           </div>
           <div className={styles.row}>
-            <label className={styles.title}>Options</label>
+            <label className={styles.title}>Ferramentas</label>
             <ul className={styles.options}>
               <li className={`${styles.option} ${styles.active} ${styles.tool}`} id="brush">
                 <img src="/icons/brush.svg" alt="Brush Icon" />
-                <span>Brush</span>
+                <span>Pincel</span>
               </li>
               <li className={`${styles.option} ${styles.tool}`} id="eraser">
                 <img src="/icons/eraser.svg" alt="Eraser Icon" />
-                <span>Eraser</span>
+                <span>Borracha</span>
               </li>
               <li className={styles.option}>
                 <input
@@ -951,7 +957,7 @@ const handleEditSaveToggle = () => {
           </div>
           <div className={`${styles.row} ${styles.buttons}`}>
             <button className={styles.clearcanvas} onClick={clearCanvas}>
-              Clear Canvas
+              Limpar Tela
             </button>
             <button className={styles.toggleEditSave} onClick={handleEditSaveToggle}>
               {drawingEnabled ? "Salvar" : "Editar"}
@@ -964,7 +970,7 @@ const handleEditSaveToggle = () => {
               Criar
             </button>
             <button className={styles.undoButton} onClick={handleUndo} disabled={!drawingEnabled || undoStack.length <= 1}>
-              Undo
+              Desfazer
             </button>
             <label className={styles.uploadButton}>
               <input 

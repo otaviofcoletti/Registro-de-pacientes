@@ -70,6 +70,41 @@
   border: 1px solid var(--gray-300);
 }
 
+/* Reduzir largura das colunas: Data, Dente, Face e Ação */
+.annotationTable th:nth-child(1),
+.annotationTable td:nth-child(1) {
+  width: 10%;
+  min-width: 90px;
+  padding: 0.5rem;
+}
+
+.annotationTable th:nth-child(2),
+.annotationTable td:nth-child(2) {
+  width: 12%;
+  min-width: 130px;
+  padding: 0.5rem;
+}
+
+.annotationTable th:nth-child(3),
+.annotationTable td:nth-child(3) {
+  width: 10%;
+  min-width: 100px;
+  padding: 0.5rem;
+}
+
+.annotationTable th:nth-child(5),
+.annotationTable td:nth-child(5) {
+  width: 10%;
+  min-width: 100px;
+  padding: 0.5rem;
+}
+
+/* Coluna de Observação ocupa o restante do espaço */
+.annotationTable th:nth-child(4),
+.annotationTable td:nth-child(4) {
+  width: auto;
+}
+
 .tableHeader {
   background: var(--vinho);
   color: var(--white);
@@ -242,4 +277,53 @@
 
 .deleteImageButton:active {
   transform: scale(0.95);
+}
+
+.quadrantSelector {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.quadrantButtons {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: center;
+}
+
+.quadrantButton {
+  background: var(--white);
+  color: var(--vinho);
+  border: 2px solid var(--vinho);
+  border-radius: 4px;
+  padding: 0.3rem 0.6rem;
+  font-size: 0.9rem;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.3s;
+  min-width: 40px;
+}
+
+.quadrantButton:hover {
+  background: var(--light-vinho);
+  color: var(--white);
+}
+
+.quadrantButtonActive {
+  background: var(--vinho);
+  color: var(--white);
+  border-color: var(--vinho);
+}
+
+.quadrantSelector select {
+  width: 100%;
+  padding: 0.5rem;
+  border: 1px solid var(--gray-300);
+  border-radius: 4px;
+  font-size: 1rem;
+}
+
+.quadrantSelector select:disabled {
+  background: var(--gray-100);
+  cursor: not-allowed;
 }

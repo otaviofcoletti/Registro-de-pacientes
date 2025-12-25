@@ -12,7 +12,28 @@ from datetime import datetime
 
 
 app = Flask(__name__)
-CORS(app)  # Permite requisições do front-end
+CORS(app, resources={r"/*": {"origins": "*"}})  # Permite requisições de qualquer origem
+
+# Middleware para logging de requisições
+@app.before_request
+def log_request_info():
+    print(f"\n{'='*60}")
+    print(f"REQUEST RECEBIDA:")
+    print(f"  Método: {request.method}")
+    print(f"  URL: {request.url}")
+    print(f"  Origem: {request.remote_addr}")
+    print(f"  Headers: {dict(request.headers)}")
+    print(f"  Path: {request.path}")
+    print(f"{'='*60}\n")
+
+@app.after_request
+def log_response_info(response):
+    print(f"\n{'='*60}")
+    print(f"RESPOSTA ENVIADA:")
+    print(f"  Status: {response.status_code}")
+    print(f"  Headers: {dict(response.headers)}")
+    print(f"{'='*60}\n")
+    return response
 
 # Configuração do banco de dados
 DB_CONFIG = {
@@ -471,8 +492,10 @@ def delete_image():
 @app.route('/paciente/<cpf>/orcamentos', methods=['GET'])
 def get_orcamentos(cpf):
     try:
+        print(f"[DEBUG] GET /paciente/{cpf}/orcamentos - Requisição recebida de {request.remote_addr}")
         # Remove formatação do CPF (pontos e traços)
         cpf_clean = cpf.replace('.', '').replace('-', '')
+        print(f"[DEBUG] CPF limpo: {cpf_clean}")
         
         conn = get_db_connection()
         cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
@@ -542,9 +565,12 @@ def get_orcamentos(cpf):
         cursor.close()
         conn.close()
         
+        print(f"[DEBUG] Retornando {len(resultado)} orçamentos")
         return jsonify(resultado), 200
     except Exception as e:
-        print(f"Error: {e}")
+        print(f"[ERROR] Erro ao buscar orçamentos: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify({'error': 'Erro ao buscar orçamentos.'}), 500
 
 # Endpoint para adicionar um orçamento
@@ -870,7 +896,80 @@ def delete_item_orcamento(orcamento_id, item_id):
         print(f"Error: {e}")
         return jsonify({'error': 'Erro ao deletar item.'}), 500
 
+# Endpoint para buscar descrições únicas dos itens de orçamentos de um paciente
+@app.route('/paciente/<cpf>/orcamentos/descricoes', methods=['GET'])
+def get_descricoes_orcamentos(cpf):
+    try:
+        # Remove formatação do CPF (pontos e traços)
+        cpf_clean = cpf.replace('.', '').replace('-', '')
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Verifica se o paciente existe
+        patient_query = "SELECT 1 FROM paciente WHERE cpf = %s"
+        cursor.execute(patient_query, (cpf_clean,))
+        if not cursor.fetchone():
+            cursor.close()
+            conn.close()
+            return jsonify({'error': 'Paciente não encontrado.'}), 404
+        
+        # Busca descrições únicas e não vazias dos itens de orçamentos do paciente
+        descricoes_query = """
+            SELECT DISTINCT oi.descricao
+            FROM orcamento_itens oi
+            INNER JOIN orcamentos o ON oi.id_orcamento = o.id
+            WHERE o.id_paciente = %s
+            AND oi.descricao IS NOT NULL
+            AND oi.descricao != ''
+            ORDER BY oi.descricao ASC
+        """
+        cursor.execute(descricoes_query, (cpf_clean,))
+        descricoes = cursor.fetchall()
+        
+        # Extrai apenas os valores das descrições
+        descricoes_list = [row[0] for row in descricoes]
+        
+        cursor.close()
+        conn.close()
+        
+        return jsonify(descricoes_list), 200
+    except Exception as e:
+        print(f"Erro ao buscar descrições de orçamentos: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': 'Erro ao buscar descrições de orçamentos.'}), 500
+
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
+    import socket
+    hostname = socket.gethostname()
+    try:
+        local_ip = socket.gethostbyname(hostname)
+    except:
+        local_ip = "N/A"
+    
+    # Tenta obter o IP da interface de rede
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))
+        network_ip = s.getsockname()[0]
+        s.close()
+    except:
+        network_ip = "N/A"
+    
+    print(f"\n{'='*60}")
+    print(f"SERVIDOR FLASK INICIANDO")
+    print(f"  Host: 0.0.0.0 (aceita conexões de qualquer IP)")
+    print(f"  Porta: 5000")
+    print(f"  Hostname: {hostname}")
+    if local_ip != "N/A":
+        print(f"  IP Local: {local_ip}")
+    if network_ip != "N/A":
+        print(f"  IP de Rede: {network_ip}")
+    print(f"  Acesse em: http://localhost:5000")
+    if network_ip != "N/A":
+        print(f"  Ou em: http://{network_ip}:5000")
+    print(f"{'='*60}\n")
+    app.run(host='0.0.0.0', port=5000, debug=True)
 

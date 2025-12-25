@@ -178,7 +178,7 @@ const Paint = ({ cpf }) => {
       <div className={styles.container}>
         <section className={styles.tools}>
           <div className={styles.row}>
-            <label className={styles.title}>Shapes</label>
+            <label className={styles.title}>Formas</label>
             <ul className={styles.options}>
               <li className={`${styles.option} ${styles.tool}`} id="circle">
                 <img src="/icons/circle.svg" alt="Circle Icon" />

@@ -3,8 +3,37 @@ import { useParams, useNavigate } from 'react-router-dom';
 import styles from './PatientDetails.module.css';
 import Paint from '../components/PaintComponent.jsx';
 
-const API_URL = import.meta.env.VITE_API_URL;
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
+// Função para gerar os números dos dentes de um quadrante específico
+const getTeethByQuadrant = (quadrant) => {
+  const teeth = [];
+  switch(quadrant) {
+    case 1: // Superior direito: 11-18
+      for (let i = 11; i <= 18; i++) {
+        teeth.push(i);
+      }
+      break;
+    case 2: // Superior esquerdo: 21-28
+      for (let i = 21; i <= 28; i++) {
+        teeth.push(i);
+      }
+      break;
+    case 3: // Inferior esquerdo: 31-38
+      for (let i = 31; i <= 38; i++) {
+        teeth.push(i);
+      }
+      break;
+    case 4: // Inferior direito: 41-48
+      for (let i = 41; i <= 48; i++) {
+        teeth.push(i);
+      }
+      break;
+    default:
+      break;
+  }
+  return teeth;
+};
 
 export function PatientDetails() {
   const { cpf } = useParams();
@@ -22,6 +51,9 @@ export function PatientDetails() {
   const [images, setImages] = useState([]);
   const [selectedImageIndex, setSelectedImageIndex] = useState(null);
   const [galleryExpanded, setGalleryExpanded] = useState(false);
+  const [descricoesOrcamentos, setDescricoesOrcamentos] = useState([]);
+  const [selectedQuadrant, setSelectedQuadrant] = useState(null);
+  const [editingQuadrant, setEditingQuadrant] = useState({});
 
   // Fetch patient details
   useEffect(() => {
@@ -43,7 +75,22 @@ export function PatientDetails() {
     };
     fetchPatientDetails();
     fetchImages();
+    fetchDescricoesOrcamentos();
   }, [cpf]);
+  
+  const fetchDescricoesOrcamentos = async () => {
+    try {
+      const response = await fetch(`${API_URL}/paciente/${cpf}/orcamentos/descricoes`);
+      if (response.ok) {
+        const data = await response.json();
+        setDescricoesOrcamentos(data);
+      } else {
+        console.error('Erro ao buscar descrições de orçamentos');
+      }
+    } catch (error) {
+      console.error('Erro ao buscar descrições de orçamentos:', error);
+    }
+  };
   
   const fetchImages = async () => {
     try {
@@ -135,6 +182,10 @@ export function PatientDetails() {
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
+    // Se selecionar "Boca inteira", limpa o quadrante selecionado
+    if (name === 'tooth' && value === 'boca_inteira') {
+      setSelectedQuadrant(null);
+    }
   };
 
   const handleAddAnnotation = async () => {
@@ -157,6 +208,7 @@ export function PatientDetails() {
           note: '',
           epoch: Date.now(),
         });
+        setSelectedQuadrant(null);
       } else {
         console.error('Erro ao adicionar anotação.');
       }
@@ -167,9 +219,27 @@ export function PatientDetails() {
 
   const handleEditAnnotation = (index) => {
     setAnnotations((prev) =>
-      prev.map((a, i) =>
-        i === index ? { ...a, isEditing: !a.isEditing } : a
-      )
+      prev.map((a, i) => {
+        if (i === index) {
+          const isEditing = !a.isEditing;
+          if (isEditing) {
+            // Quando entra em modo de edição, detecta o quadrante do dente atual
+            const quadrant = getQuadrantFromTooth(a.tooth);
+            if (quadrant) {
+              setEditingQuadrant((prev) => ({ ...prev, [index]: quadrant }));
+            }
+          } else {
+            // Quando sai do modo de edição, limpa o quadrante
+            setEditingQuadrant((prev) => {
+              const newState = { ...prev };
+              delete newState[index];
+              return newState;
+            });
+          }
+          return { ...a, isEditing };
+        }
+        return a;
+      })
     );
   };
   
@@ -217,6 +287,25 @@ export function PatientDetails() {
         i === index ? { ...a, [field]: value } : a
       )
     );
+    // Se selecionar "Boca inteira", limpa o quadrante selecionado
+    if (field === 'tooth' && value === 'boca_inteira') {
+      setEditingQuadrant((prev) => {
+        const newState = { ...prev };
+        delete newState[index];
+        return newState;
+      });
+    }
+  };
+
+  // Função para determinar o quadrante de um dente
+  const getQuadrantFromTooth = (tooth) => {
+    if (!tooth || tooth === 'boca_inteira') return null;
+    const toothNum = parseInt(tooth);
+    if (toothNum >= 11 && toothNum <= 18) return 1;
+    if (toothNum >= 21 && toothNum <= 28) return 2;
+    if (toothNum >= 31 && toothNum <= 38) return 3;
+    if (toothNum >= 41 && toothNum <= 48) return 4;
+    return null;
   };
 
   const handleDeleteAnnotation = async (index) => {
@@ -385,13 +474,61 @@ export function PatientDetails() {
                 />
               </td>
               <td>
-                <select name="tooth" value={form.tooth} onChange={handleInputChange}>
-                  <option value="">Selecione o dente</option>
-                  <option value="boca_inteira">Boca inteira</option>
-                  {Array.from({ length: 32 }, (_, i) => (
-                    <option key={i} value={i + 1}>{i + 1}</option>
-                  ))}
-                </select>
+                <div className={styles.quadrantSelector}>
+                  <div className={styles.quadrantButtons}>
+                    <button
+                      type="button"
+                      className={`${styles.quadrantButton} ${selectedQuadrant === 1 ? styles.quadrantButtonActive : ''}`}
+                      onClick={() => {
+                        setSelectedQuadrant(1);
+                        setForm((prev) => ({ ...prev, tooth: '' }));
+                      }}
+                    >
+                      1
+                    </button>
+                    <button
+                      type="button"
+                      className={`${styles.quadrantButton} ${selectedQuadrant === 2 ? styles.quadrantButtonActive : ''}`}
+                      onClick={() => {
+                        setSelectedQuadrant(2);
+                        setForm((prev) => ({ ...prev, tooth: '' }));
+                      }}
+                    >
+                      2
+                    </button>
+                    <button
+                      type="button"
+                      className={`${styles.quadrantButton} ${selectedQuadrant === 3 ? styles.quadrantButtonActive : ''}`}
+                      onClick={() => {
+                        setSelectedQuadrant(3);
+                        setForm((prev) => ({ ...prev, tooth: '' }));
+                      }}
+                    >
+                      3
+                    </button>
+                    <button
+                      type="button"
+                      className={`${styles.quadrantButton} ${selectedQuadrant === 4 ? styles.quadrantButtonActive : ''}`}
+                      onClick={() => {
+                        setSelectedQuadrant(4);
+                        setForm((prev) => ({ ...prev, tooth: '' }));
+                      }}
+                    >
+                      4
+                    </button>
+                  </div>
+                  <select 
+                    name="tooth" 
+                    value={form.tooth} 
+                    onChange={handleInputChange}
+                  >
+                    <option value="">Selecione o dente</option>
+                    {selectedQuadrant && getTeethByQuadrant(selectedQuadrant).map((toothNum) => (
+                      <option key={toothNum} value={toothNum}>{toothNum}</option>
+                    ))}
+                    <option value="boca_inteira">Boca inteira</option>
+                  </select>
+                </div>
               </td>
               <td>
                 <select name="face" value={form.face} onChange={handleInputChange}>
@@ -404,12 +541,32 @@ export function PatientDetails() {
                 </select>
               </td>
               <td>
-                <textarea
-                  name="note"
-                  value={form.note}
-                  onChange={handleInputChange}
-                  placeholder="Adicionar observação..."
-                />
+                <div className={styles.descricaoContainer}>
+                  {descricoesOrcamentos.length > 0 && (
+                    <select
+                      className={styles.descricaoSelect}
+                      onChange={(e) => {
+                        if (e.target.value) {
+                          setForm((prev) => ({ ...prev, note: e.target.value }));
+                        }
+                      }}
+                      value=""
+                    >
+                      <option value="">Selecione uma descrição de orçamento...</option>
+                      {descricoesOrcamentos.map((descricao, idx) => (
+                        <option key={idx} value={descricao}>
+                          {descricao.length > 50 ? `${descricao.substring(0, 50)}...` : descricao}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                  <textarea
+                    name="note"
+                    value={form.note}
+                    onChange={handleInputChange}
+                    placeholder="Adicionar observação..."
+                  />
+                </div>
               </td>
               <td>
                 <button className={styles.addButton} onClick={handleAddAnnotation}>
@@ -432,16 +589,60 @@ export function PatientDetails() {
                 </td>
                 <td>
                   {a.isEditing ? (
-                    <select
-                      value={a.tooth}
-                      onChange={(e) => handleAnnotationChange(idx, 'tooth', e.target.value)}
-                    >
-                      <option value="">Selecione o dente</option>
-                      <option value="boca_inteira">Boca inteira</option>
-                      {Array.from({ length: 32 }, (_, i) => (
-                        <option key={i} value={i + 1}>{i + 1}</option>
-                      ))}
-                    </select>
+                    <div className={styles.quadrantSelector}>
+                      <div className={styles.quadrantButtons}>
+                        <button
+                          type="button"
+                          className={`${styles.quadrantButton} ${editingQuadrant[idx] === 1 ? styles.quadrantButtonActive : ''}`}
+                          onClick={() => {
+                            setEditingQuadrant((prev) => ({ ...prev, [idx]: 1 }));
+                            handleAnnotationChange(idx, 'tooth', '');
+                          }}
+                        >
+                          1
+                        </button>
+                        <button
+                          type="button"
+                          className={`${styles.quadrantButton} ${editingQuadrant[idx] === 2 ? styles.quadrantButtonActive : ''}`}
+                          onClick={() => {
+                            setEditingQuadrant((prev) => ({ ...prev, [idx]: 2 }));
+                            handleAnnotationChange(idx, 'tooth', '');
+                          }}
+                        >
+                          2
+                        </button>
+                        <button
+                          type="button"
+                          className={`${styles.quadrantButton} ${editingQuadrant[idx] === 3 ? styles.quadrantButtonActive : ''}`}
+                          onClick={() => {
+                            setEditingQuadrant((prev) => ({ ...prev, [idx]: 3 }));
+                            handleAnnotationChange(idx, 'tooth', '');
+                          }}
+                        >
+                          3
+                        </button>
+                        <button
+                          type="button"
+                          className={`${styles.quadrantButton} ${editingQuadrant[idx] === 4 ? styles.quadrantButtonActive : ''}`}
+                          onClick={() => {
+                            setEditingQuadrant((prev) => ({ ...prev, [idx]: 4 }));
+                            handleAnnotationChange(idx, 'tooth', '');
+                          }}
+                        >
+                          4
+                        </button>
+                      </div>
+                      <select
+                        value={a.tooth}
+                        onChange={(e) => handleAnnotationChange(idx, 'tooth', e.target.value)}
+                      >
+                        <option value="">Selecione o dente</option>
+                        {editingQuadrant[idx] && getTeethByQuadrant(editingQuadrant[idx]).map((toothNum) => (
+                          <option key={toothNum} value={toothNum}>{toothNum}</option>
+                        ))}
+                        <option value="boca_inteira">Boca inteira</option>
+                      </select>
+                    </div>
                   ) : (
                     a.tooth === 'boca_inteira' ? 'Boca inteira' : a.tooth
                   )}
@@ -503,7 +704,12 @@ export function PatientDetails() {
           </tbody>
         </table>
       </div>
-      <button className={styles.backButton} onClick={() => navigate('/pacientes')}>Voltar para Lista</button>
+      <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
+        <button className={styles.backButton} onClick={() => navigate('/pacientes')}>Voltar para Lista de Pacientes</button>
+        <button className={styles.backButton} onClick={() => navigate(`/pagamentos/${cpf}`)}>
+          Ver Orçamentos e Pagamentos
+        </button>
+      </div>
     </div>
   );
 }
