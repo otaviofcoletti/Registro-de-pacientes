@@ -42,7 +42,7 @@ export function PatientDetails() {
   const [form, setForm] = useState({
     date: new Date().toISOString().split('T')[0],
     tooth: '',
-    face: 'Não se aplica',
+    face: [],
     note: '',
     epoch: Date.now(),
   });
@@ -54,6 +54,47 @@ export function PatientDetails() {
   const [descricoesOrcamentos, setDescricoesOrcamentos] = useState([]);
   const [selectedQuadrant, setSelectedQuadrant] = useState(null);
   const [editingQuadrant, setEditingQuadrant] = useState({});
+  const [annotationsExpanded, setAnnotationsExpanded] = useState(false);
+
+  // Função para converter string de face para array
+  const parseFaceString = (faceString) => {
+    if (!faceString || faceString === 'Não se aplica') return [];
+    
+    // Mapeamento de valores antigos para novas letras
+    const faceMap = {
+      'Vestibular': 'V',
+      'Mesial': 'M',
+      'Distal': 'D',
+      'Oclusal': 'O',
+      'Lingual': 'P', // Assumindo que Lingual = P (Palatino)
+      'V': 'V',
+      'M': 'M',
+      'D': 'D',
+      'O': 'O',
+      'P': 'P'
+    };
+    
+    // Se já for array, retorna como está
+    if (Array.isArray(faceString)) {
+      return faceString;
+    }
+    
+    // Se for uma string separada por vírgula, divide e mapeia
+    if (typeof faceString === 'string' && faceString.includes(',')) {
+      return faceString.split(',').map(f => {
+        const trimmed = f.trim();
+        return faceMap[trimmed] || trimmed;
+      }).filter(f => f && ['M', 'D', 'O', 'P', 'V'].includes(f));
+    }
+    
+    // Se for uma string única, mapeia e retorna como array
+    if (typeof faceString === 'string') {
+      const mapped = faceMap[faceString.trim()] || faceString.trim();
+      return mapped && ['M', 'D', 'O', 'P', 'V'].includes(mapped) ? [mapped] : [];
+    }
+    
+    return [];
+  };
 
   // Fetch patient details
   useEffect(() => {
@@ -63,7 +104,12 @@ export function PatientDetails() {
         if (response.ok) {
           const data = await response.json();
           setPatient(data);
-          setAnnotations(data.treatments);
+          // Converte as faces de string para array
+          const annotationsWithFaceArray = (data.treatments || []).map(annotation => ({
+            ...annotation,
+            face: parseFaceString(annotation.face)
+          }));
+          setAnnotations(annotationsWithFaceArray);
         } else {
           console.error('Erro ao buscar detalhes do paciente.');
         }
@@ -188,23 +234,46 @@ export function PatientDetails() {
     }
   };
 
+  const handleFaceChange = (faceLetter) => {
+    setForm((prev) => {
+      const currentFaces = prev.face || [];
+      if (currentFaces.includes(faceLetter)) {
+        // Remove se já estiver selecionado
+        return { ...prev, face: currentFaces.filter(f => f !== faceLetter) };
+      } else {
+        // Adiciona se não estiver selecionado
+        return { ...prev, face: [...currentFaces, faceLetter] };
+      }
+    });
+  };
+
   const handleAddAnnotation = async () => {
     if (!form.tooth || !form.note) {
       alert('Por favor, preencha todos os campos.');
       return;
     }
     try {
+      // Converte array de faces para string separada por vírgula
+      const faceString = Array.isArray(form.face) && form.face.length > 0 
+        ? form.face.join(', ') 
+        : 'Não se aplica';
+      
+      const formData = {
+        ...form,
+        face: faceString
+      };
+      
       const response = await fetch(`${API_URL}/paciente/${cpf}/anotacoes`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
+        body: JSON.stringify(formData),
       });
       if (response.ok) {
-        setAnnotations((prev) => [{ ...form, note: form.note }, ...prev]);
+        setAnnotations((prev) => [{ ...form, face: form.face, note: form.note }, ...prev]);
         setForm({
           date: new Date().toISOString().split('T')[0],
           tooth: '',
-          face: 'Não se aplica',
+          face: [],
           note: '',
           epoch: Date.now(),
         });
@@ -253,13 +322,18 @@ export function PatientDetails() {
     }
   
     try {
+      // Converte array de faces para string separada por vírgula
+      const faceString = Array.isArray(annotation.face) && annotation.face.length > 0 
+        ? annotation.face.join(', ') 
+        : 'Não se aplica';
+      
       const response = await fetch(`${API_URL}/paciente/${cpf}/anotacoes/${annotation.epoch}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           data: annotation.date,         // Garantir que o nome do campo é "data" no back-end
           numero_dente: annotation.tooth, // Alterar para o campo correto no banco de dados
-          face_dente: annotation.face || 'Não se aplica', // Adicionar face do dente
+          face_dente: faceString, // Adicionar face do dente
           anotacao: annotation.note,     // Alterar para o campo correto no banco de dados
         }),
       });
@@ -295,6 +369,34 @@ export function PatientDetails() {
         return newState;
       });
     }
+  };
+
+  const handleAnnotationFaceChange = (index, faceLetter) => {
+    setAnnotations((prev) =>
+      prev.map((a, i) => {
+        if (i === index) {
+          const currentFaces = a.face || [];
+          if (Array.isArray(currentFaces)) {
+            if (currentFaces.includes(faceLetter)) {
+              // Remove se já estiver selecionado
+              return { ...a, face: currentFaces.filter(f => f !== faceLetter) };
+            } else {
+              // Adiciona se não estiver selecionado
+              return { ...a, face: [...currentFaces, faceLetter] };
+            }
+          } else {
+            // Se não for array, converte para array primeiro
+            const facesArray = parseFaceString(currentFaces);
+            if (facesArray.includes(faceLetter)) {
+              return { ...a, face: facesArray.filter(f => f !== faceLetter) };
+            } else {
+              return { ...a, face: [...facesArray, faceLetter] };
+            }
+          }
+        }
+        return a;
+      })
+    );
   };
 
   // Função para determinar o quadrante de um dente
@@ -531,14 +633,48 @@ export function PatientDetails() {
                 </div>
               </td>
               <td>
-                <select name="face" value={form.face} onChange={handleInputChange}>
-                  <option value="Não se aplica">Não se aplica</option>
-                  <option value="Vestibular">Vestibular</option>
-                  <option value="Lingual">Lingual</option>
-                  <option value="Mesial">Mesial</option>
-                  <option value="Distal">Distal</option>
-                  <option value="Oclusal">Oclusal</option>
-                </select>
+                <div className={styles.faceCheckboxes}>
+                  <label className={styles.faceCheckbox}>
+                    <input
+                      type="checkbox"
+                      checked={form.face.includes('M')}
+                      onChange={() => handleFaceChange('M')}
+                    />
+                    <span>M</span>
+                  </label>
+                  <label className={styles.faceCheckbox}>
+                    <input
+                      type="checkbox"
+                      checked={form.face.includes('D')}
+                      onChange={() => handleFaceChange('D')}
+                    />
+                    <span>D</span>
+                  </label>
+                  <label className={styles.faceCheckbox}>
+                    <input
+                      type="checkbox"
+                      checked={form.face.includes('O')}
+                      onChange={() => handleFaceChange('O')}
+                    />
+                    <span>O</span>
+                  </label>
+                  <label className={styles.faceCheckbox}>
+                    <input
+                      type="checkbox"
+                      checked={form.face.includes('P')}
+                      onChange={() => handleFaceChange('P')}
+                    />
+                    <span>P</span>
+                  </label>
+                  <label className={styles.faceCheckbox}>
+                    <input
+                      type="checkbox"
+                      checked={form.face.includes('V')}
+                      onChange={() => handleFaceChange('V')}
+                    />
+                    <span>V</span>
+                  </label>
+                </div>
               </td>
               <td>
                 <div className={styles.descricaoContainer}>
@@ -574,7 +710,7 @@ export function PatientDetails() {
                 </button>
               </td>
             </tr>
-            {annotations.map((a, idx) => (
+            {(annotationsExpanded ? annotations : annotations.slice(0, 5)).map((a, idx) => (
               <tr key={idx} className={styles.annotationRow}>
                 <td>
                   {a.isEditing ? (
@@ -649,19 +785,52 @@ export function PatientDetails() {
                 </td>
                 <td>
                   {a.isEditing ? (
-                    <select
-                      value={a.face || 'Não se aplica'}
-                      onChange={(e) => handleAnnotationChange(idx, 'face', e.target.value)}
-                    >
-                      <option value="Não se aplica">Não se aplica</option>
-                      <option value="Vestibular">Vestibular</option>
-                      <option value="Lingual">Lingual</option>
-                      <option value="Mesial">Mesial</option>
-                      <option value="Distal">Distal</option>
-                      <option value="Oclusal">Oclusal</option>
-                    </select>
+                    <div className={styles.faceCheckboxes}>
+                      <label className={styles.faceCheckbox}>
+                        <input
+                          type="checkbox"
+                          checked={Array.isArray(a.face) ? a.face.includes('M') : parseFaceString(a.face).includes('M')}
+                          onChange={() => handleAnnotationFaceChange(idx, 'M')}
+                        />
+                        <span>M</span>
+                      </label>
+                      <label className={styles.faceCheckbox}>
+                        <input
+                          type="checkbox"
+                          checked={Array.isArray(a.face) ? a.face.includes('D') : parseFaceString(a.face).includes('D')}
+                          onChange={() => handleAnnotationFaceChange(idx, 'D')}
+                        />
+                        <span>D</span>
+                      </label>
+                      <label className={styles.faceCheckbox}>
+                        <input
+                          type="checkbox"
+                          checked={Array.isArray(a.face) ? a.face.includes('O') : parseFaceString(a.face).includes('O')}
+                          onChange={() => handleAnnotationFaceChange(idx, 'O')}
+                        />
+                        <span>O</span>
+                      </label>
+                      <label className={styles.faceCheckbox}>
+                        <input
+                          type="checkbox"
+                          checked={Array.isArray(a.face) ? a.face.includes('P') : parseFaceString(a.face).includes('P')}
+                          onChange={() => handleAnnotationFaceChange(idx, 'P')}
+                        />
+                        <span>P</span>
+                      </label>
+                      <label className={styles.faceCheckbox}>
+                        <input
+                          type="checkbox"
+                          checked={Array.isArray(a.face) ? a.face.includes('V') : parseFaceString(a.face).includes('V')}
+                          onChange={() => handleAnnotationFaceChange(idx, 'V')}
+                        />
+                        <span>V</span>
+                      </label>
+                    </div>
                   ) : (
-                    a.face || 'Não se aplica'
+                    Array.isArray(a.face) && a.face.length > 0 
+                      ? a.face.join(', ') 
+                      : (typeof a.face === 'string' && a.face !== 'Não se aplica' ? a.face : 'Não se aplica')
                   )}
                 </td>
                 <td>
@@ -701,6 +870,18 @@ export function PatientDetails() {
                 </td>
               </tr>
             ))}
+            {annotations.length > 5 && (
+              <tr className={styles.expandRow}>
+                <td colSpan="5" className={styles.expandCell}>
+                  <button 
+                    className={styles.expandButton}
+                    onClick={() => setAnnotationsExpanded(!annotationsExpanded)}
+                  >
+                    {annotationsExpanded ? 'Mostrar menos' : `Ver todas (${annotations.length})`}
+                  </button>
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>

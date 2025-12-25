@@ -48,6 +48,33 @@
   margin-top: 2rem;
 }
 
+.expandRow {
+  background: var(--gray-100);
+}
+
+.expandCell {
+  text-align: center;
+  padding: 0.8rem !important;
+  border-top: 2px solid var(--gray-300);
+}
+
+.expandButton {
+  background: var(--vinho);
+  color: var(--white);
+  border: none;
+  border-radius: 4px;
+  padding: 0.6rem 2rem;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background 0.3s;
+  width: 100%;
+  max-width: 300px;
+}
+
+.expandButton:hover {
+  background: var(--light-vinho);
+}
+
 .subtitle {
   font-size: 1.5rem;
   color: var(--vinho);
@@ -326,4 +353,37 @@
 .quadrantSelector select:disabled {
   background: var(--gray-100);
   cursor: not-allowed;
+}
+
+.faceCheckboxes {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.faceCheckbox {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  cursor: pointer;
+  padding: 0.2rem 0.4rem;
+  border-radius: 4px;
+  transition: background 0.2s;
+}
+
+.faceCheckbox:hover {
+  background: var(--gray-100);
+}
+
+.faceCheckbox input[type="checkbox"] {
+  cursor: pointer;
+  width: 18px;
+  height: 18px;
+}
+
+.faceCheckbox span {
+  font-weight: bold;
+  font-size: 0.9rem;
+  user-select: none;
 }
