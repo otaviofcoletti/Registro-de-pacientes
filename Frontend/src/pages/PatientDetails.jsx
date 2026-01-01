@@ -410,6 +410,31 @@ export function PatientDetails() {
     return null;
   };
 
+  const handleDeletePatient = async () => {
+    if (!patient) return;
+    
+    const confirmMessage = `Tem certeza que deseja excluir a ficha do paciente ${patient.name}?\n\nEsta ação não pode ser desfeita e excluirá:\n- Dados do paciente\n- Anotações dentárias\n- Imagens\n- Orçamentos e pagamentos`;
+    
+    if (window.confirm(confirmMessage)) {
+      try {
+        const response = await fetch(`${API_URL}/pacientes/${cpf}`, {
+          method: 'DELETE'
+        });
+        
+        if (response.ok) {
+          alert('Ficha do paciente excluída com sucesso!');
+          navigate('/pacientes');
+        } else {
+          const errorData = await response.json();
+          alert(`Erro ao excluir ficha: ${errorData.error || 'Erro desconhecido'}`);
+        }
+      } catch (error) {
+        console.error('Erro ao excluir paciente:', error);
+        alert('Erro ao excluir ficha do paciente. Por favor, tente novamente.');
+      }
+    }
+  };
+
   const handleDeleteAnnotation = async (index) => {
     const annotation = annotations[index];
   
@@ -496,6 +521,7 @@ export function PatientDetails() {
       <h1 className={styles.title}>Ficha do Paciente</h1>
       <div className={styles.info}>
         <p><strong>Nome:</strong> {patient.name}</p>
+        <p><strong>CPF:</strong> {patient.cpf}</p>
         <p><strong>Telefone:</strong> {patient.phone}</p>
         <p><strong>Data de Nascimento:</strong> {formatDate(patient.birthdate)}</p>
         <p><strong>Endereço:</strong> {patient.address}</p>
@@ -889,6 +915,12 @@ export function PatientDetails() {
         <button className={styles.backButton} onClick={() => navigate('/pacientes')}>Voltar para Lista de Pacientes</button>
         <button className={styles.backButton} onClick={() => navigate(`/pagamentos/${cpf}`)}>
           Ver Orçamentos e Pagamentos
+        </button>
+        <button 
+          className={styles.deleteButton} 
+          onClick={handleDeletePatient}
+        >
+          Excluir Ficha
         </button>
       </div>
     </div>

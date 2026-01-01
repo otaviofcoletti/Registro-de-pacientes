@@ -36,3 +36,7 @@ WHERE face_dente = 'Lingual';
 -- Se houver múltiplas faces já separadas por vírgula, manter como está
 -- Caso contrário, os valores já foram convertidos acima
 
+
+
+
+

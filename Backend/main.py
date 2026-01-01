@@ -131,6 +131,13 @@ def update_paciente(cpf):
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
+        
+        # Busca o nome antigo antes de atualizar
+        cursor.execute("SELECT nome FROM paciente WHERE cpf = %s", (cpf,))
+        old_row = cursor.fetchone()
+        old_nome = old_row[0] if old_row else None
+        
+        # Atualiza os dados do paciente
         query = """
             UPDATE paciente
             SET nome = %s, telefone = %s, data_nascimento = %s, endereco = %s, convenio = %s
@@ -142,6 +149,45 @@ def update_paciente(cpf):
             data.get('convenio'), cpf
         ))
         conn.commit()
+        
+        # Se o nome mudou, renomeia a pasta de imagens
+        new_nome = data['nome']
+        if old_nome and old_nome.strip() != new_nome.strip():
+            import shutil
+            # Remove caracteres inválidos do nome antigo e novo
+            def sanitize_name(name):
+                return name.replace('/', '-').replace('\\', '-').replace(':', '-').replace('*', '-').replace('?', '-').replace('"', '-').replace('<', '-').replace('>', '-').replace('|', '-').strip()
+            
+            old_nome_safe = sanitize_name(old_nome)
+            new_nome_safe = sanitize_name(new_nome)
+            
+            old_folder_name = f"{old_nome_safe} - {cpf}"
+            new_folder_name = f"{new_nome_safe} - {cpf}"
+            
+            old_folder_path = os.path.join(BASE_FOLDER, old_folder_name)
+            new_folder_path = os.path.join(BASE_FOLDER, new_folder_name)
+            
+            # Se a pasta antiga existe e é diferente da nova, renomeia
+            if os.path.exists(old_folder_path) and old_folder_path != new_folder_path:
+                try:
+                    # Se a pasta nova já existe, move os arquivos para dentro dela
+                    if os.path.exists(new_folder_path):
+                        for filename in os.listdir(old_folder_path):
+                            old_file = os.path.join(old_folder_path, filename)
+                            new_file = os.path.join(new_folder_path, filename)
+                            if not os.path.exists(new_file):
+                                shutil.move(old_file, new_file)
+                        # Remove a pasta antiga se estiver vazia
+                        if not os.listdir(old_folder_path):
+                            os.rmdir(old_folder_path)
+                    else:
+                        # Renomeia a pasta inteira
+                        shutil.move(old_folder_path, new_folder_path)
+                    print(f"Pasta renomeada de '{old_folder_name}' para '{new_folder_name}'")
+                except Exception as e:
+                    print(f"Erro ao renomear pasta de imagens: {e}")
+                    # Não falha a atualização do paciente se houver erro ao renomear pasta
+        
         cursor.close()
         conn.close()
         return jsonify({'message': 'Paciente atualizado com sucesso!'}), 200
@@ -336,6 +382,32 @@ BASE_FOLDER = 'patient_images'
 if not os.path.exists(BASE_FOLDER):
     os.makedirs(BASE_FOLDER)
 
+# Função auxiliar para obter o nome da pasta do paciente no formato "{nome} - {cpf}"
+def get_patient_folder_name(cpf):
+    """
+    Busca o nome do paciente no banco e retorna o nome da pasta no formato "{nome} - {cpf}".
+    Se o paciente não for encontrado, retorna apenas o CPF.
+    """
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        query = "SELECT nome FROM paciente WHERE cpf = %s"
+        cursor.execute(query, (cpf,))
+        row = cursor.fetchone()
+        cursor.close()
+        conn.close()
+        
+        if row and row[0]:
+            nome = row[0].strip()
+            # Remove caracteres inválidos para nome de pasta (Windows/Linux)
+            nome_safe = nome.replace('/', '-').replace('\\', '-').replace(':', '-').replace('*', '-').replace('?', '-').replace('"', '-').replace('<', '-').replace('>', '-').replace('|', '-')
+            return f"{nome_safe} - {cpf}"
+        else:
+            return cpf
+    except Exception as e:
+        print(f"Erro ao buscar nome do paciente: {e}")
+        return cpf
+
 @app.route('/save_image', methods=['POST'])
 def save_image():
     data = request.get_json()
@@ -347,10 +419,30 @@ def save_image():
     if not cpf or not image_data:
         return jsonify({'error': 'cpf e image são obrigatórios'}), 400
 
+    # Obtém o nome da pasta no formato "{nome} - {cpf}"
+    folder_name = get_patient_folder_name(cpf)
+    
     # Cria uma pasta para o paciente, se não existir
-    patient_folder = os.path.join(BASE_FOLDER, cpf)
+    patient_folder = os.path.join(BASE_FOLDER, folder_name)
     if not os.path.exists(patient_folder):
         os.makedirs(patient_folder)
+        
+        # Se existir uma pasta antiga com apenas o CPF, migra as imagens
+        old_folder = os.path.join(BASE_FOLDER, cpf)
+        if os.path.exists(old_folder) and old_folder != patient_folder:
+            import shutil
+            try:
+                # Move todos os arquivos da pasta antiga para a nova
+                for filename in os.listdir(old_folder):
+                    old_file = os.path.join(old_folder, filename)
+                    new_file = os.path.join(patient_folder, filename)
+                    shutil.move(old_file, new_file)
+                # Remove a pasta antiga se estiver vazia
+                if not os.listdir(old_folder):
+                    os.rmdir(old_folder)
+                print(f"Migradas imagens de {old_folder} para {patient_folder}")
+            except Exception as e:
+                print(f"Erro ao migrar pasta antiga: {e}")
 
     # Remove o cabeçalho (data:image/png;base64,) se existir
     if "," in image_data:
@@ -384,9 +476,17 @@ def update_image():
         return jsonify({'error': 'cpf, image e timestamp_iso são obrigatórios'}), 400
 
     try:
-        patient_folder = os.path.join(BASE_FOLDER, cpf)
+        # Obtém o nome da pasta no formato "{nome} - {cpf}"
+        folder_name = get_patient_folder_name(cpf)
+        patient_folder = os.path.join(BASE_FOLDER, folder_name)
+        
+        # Se a pasta nova não existir, tenta a pasta antiga (apenas CPF)
         if not os.path.exists(patient_folder):
-            return jsonify({'error': 'Pasta do paciente não encontrada'}), 404
+            old_folder = os.path.join(BASE_FOLDER, cpf)
+            if os.path.exists(old_folder):
+                patient_folder = old_folder
+            else:
+                return jsonify({'error': 'Pasta do paciente não encontrada'}), 404
 
         # Reconstrói o nome do arquivo a partir do timestamp_iso
         safe_timestamp = timestamp_iso.replace(":", "-")
@@ -419,7 +519,16 @@ def get_images():
     if not cpf:
         return jsonify({'error': 'cpf é obrigatório'}), 400
 
-    patient_folder = os.path.join(BASE_FOLDER, cpf)
+    # Obtém o nome da pasta no formato "{nome} - {cpf}"
+    folder_name = get_patient_folder_name(cpf)
+    patient_folder = os.path.join(BASE_FOLDER, folder_name)
+    
+    # Se a pasta nova não existir, tenta a pasta antiga (apenas CPF)
+    if not os.path.exists(patient_folder):
+        old_folder = os.path.join(BASE_FOLDER, cpf)
+        if os.path.exists(old_folder):
+            patient_folder = old_folder
+    
     images = []
     if os.path.exists(patient_folder):
         for filename in os.listdir(patient_folder):
@@ -463,9 +572,17 @@ def delete_image():
         return jsonify({'error': 'cpf e timestamp_iso são obrigatórios'}), 400
     
     try:
-        patient_folder = os.path.join(BASE_FOLDER, cpf)
+        # Obtém o nome da pasta no formato "{nome} - {cpf}"
+        folder_name = get_patient_folder_name(cpf)
+        patient_folder = os.path.join(BASE_FOLDER, folder_name)
+        
+        # Se a pasta nova não existir, tenta a pasta antiga (apenas CPF)
         if not os.path.exists(patient_folder):
-            return jsonify({'error': 'Pasta do paciente não encontrada'}), 404
+            old_folder = os.path.join(BASE_FOLDER, cpf)
+            if os.path.exists(old_folder):
+                patient_folder = old_folder
+            else:
+                return jsonify({'error': 'Pasta do paciente não encontrada'}), 404
         
         # Reconstrói o nome do arquivo a partir do timestamp_iso
         # O timestamp_iso vem no formato "2025-12-24T15-11-48.329Z"

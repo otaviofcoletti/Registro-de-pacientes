@@ -52,7 +52,7 @@ const EditPatient = () => {
         e.preventDefault();
 
         try {
-            const response = await fetch(`http://localhost:5000/pacientes/${cpf}`, {
+            const response = await fetch(`${API_URL}/pacientes/${cpf}`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
