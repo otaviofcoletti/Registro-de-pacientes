@@ -22,9 +22,23 @@ pip install -r requirements.txt
 
 ```
 cd Frontend
+```
+```
 sudo apt install nodejs npm
+```
+```
 npm install
+```
+```
+npm run dev
+```
 
+```
+cd Database
+```
+```
+docker compose up -d
+```
 
 Antes de começar, certifique-se de ter instalado:
 
