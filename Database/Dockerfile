@@ -1,4 +1,4 @@
 FROM postgres:latest
 
 # Copiar o arquivo SQL para o container
-COPY init.sql /docker-entrypoint-initdb.d/
+COPY init_novo.sql /docker-entrypoint-initdb.d/

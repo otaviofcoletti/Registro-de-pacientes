@@ -4,6 +4,28 @@ Sistema completo para gerenciamento de fichas de pacientes de uma clínica odont
 
 ## 📋 Pré-requisitos
 
+```
+cd Backend
+``` 
+
+```
+python -m venv .venv
+```
+```
+source /home/consultorio/Registro-de-pacientes/Backend/.venv/bin/activate
+```
+
+```
+pip install -r requirements.txt
+```  
+
+
+```
+cd Frontend
+sudo apt install nodejs npm
+npm install
+
+
 Antes de começar, certifique-se de ter instalado:
 
 ### Para Windows:
