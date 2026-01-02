@@ -40,6 +40,8 @@ cd Database
 docker compose up -d
 ```
 
+https://www.youtube.com/watch?v=dZu9lhcUUuA
+
 Antes de começar, certifique-se de ter instalado:
 
 ### Para Windows:
