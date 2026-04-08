@@ -8,11 +8,31 @@ import psycopg2.extras
 
 import os
 import base64
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
+from PIL import Image
+from PIL.ExifTags import TAGS
+
+# Timezone do Brasil
+try:
+    from zoneinfo import ZoneInfo
+    BRAZIL_TIMEZONE = ZoneInfo("America/Sao_Paulo")
+except ImportError:
+    # Fallback para Python < 3.9
+    try:
+        import pytz
+        BRAZIL_TIMEZONE = pytz.timezone("America/Sao_Paulo")
+    except ImportError:
+        # Se não tiver pytz, usar offset fixo (-3 horas)
+        BRAZIL_TIMEZONE = timezone(timedelta(hours=-3))
 
 
 app = Flask(__name__)
-CORS(app, resources={r"/*": {"origins": "*"}})  # Permite requisições de qualquer origem
+CORS(app, resources={r"/*": {
+    "origins": "*",
+    "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    "allow_headers": ["Content-Type", "Authorization"],
+    "expose_headers": ["Content-Type"]
+}})  # Permite requisições de qualquer origem
 
 # Middleware para logging de requisições
 @app.before_request
@@ -33,15 +53,21 @@ def log_response_info(response):
     print(f"  Status: {response.status_code}")
     print(f"  Headers: {dict(response.headers)}")
     print(f"{'='*60}\n")
+    
+    # Garante que os headers CORS estão presentes
+    response.headers.add('Access-Control-Allow-Origin', '*')
+    response.headers.add('Access-Control-Allow-Headers', 'Content-Type, Authorization')
+    response.headers.add('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+    
     return response
 
 # Configuração do banco de dados
 DB_CONFIG = {
-    'dbname': 'clinica',
-    'user': 'admin',
-    'password': 'admin123',
-    'host': 'localhost',
-    'port': 5432
+    'dbname': os.getenv('DB_NAME', 'clinica'),
+    'user': os.getenv('DB_USER', 'admin'),
+    'password': os.getenv('DB_PASSWORD', 'admin123'),
+    'host': os.getenv('DB_HOST', 'localhost'),
+    'port': int(os.getenv('DB_PORT', '5432'))
 }
 
 def get_db_connection():
@@ -77,7 +103,7 @@ def get_pacientes():
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
-        query = "SELECT cpf, nome, telefone, data_nascimento, endereco, convenio FROM paciente"
+        query = "SELECT cpf, nome, telefone, data_nascimento, endereco, convenio FROM paciente ORDER BY nome ASC"
         cursor.execute(query)
         rows = cursor.fetchall()
         pacientes = [
@@ -382,6 +408,53 @@ BASE_FOLDER = 'patient_images'
 if not os.path.exists(BASE_FOLDER):
     os.makedirs(BASE_FOLDER)
 
+# Função para extrair metadados EXIF e data de modificação do arquivo
+def get_image_metadata(filepath):
+    """
+    Extrai metadados da imagem:
+    1. Tenta extrair EXIF DateTimeOriginal ou DateTime
+    2. Se não houver EXIF, usa a data de modificação do arquivo
+    3. Retorna datetime UTC
+    """
+    image_datetime = None
+    
+    try:
+        # Tenta abrir a imagem e extrair EXIF
+        with Image.open(filepath) as img:
+            exifdata = img.getexif()
+            
+            if exifdata is not None:
+                # Procura por DateTimeOriginal (tag 306) ou DateTime (tag 306)
+                for tag_id, value in exifdata.items():
+                    tag = TAGS.get(tag_id, tag_id)
+                    if tag == 'DateTimeOriginal' or tag == 'DateTime':
+                        # Formato EXIF: "YYYY:MM:DD HH:MM:SS"
+                        try:
+                            # Converte para datetime (EXIF não tem timezone, assume UTC)
+                            image_datetime = datetime.strptime(value, "%Y:%m:%d %H:%M:%S")
+                            image_datetime = image_datetime.replace(tzinfo=timezone.utc)
+                            break
+                        except ValueError:
+                            continue
+    except Exception as e:
+        print(f"Erro ao ler EXIF de {filepath}: {e}")
+    
+    # Se não encontrou EXIF, usa a data de modificação do arquivo
+    if image_datetime is None:
+        try:
+            # Obtém a data de modificação do arquivo
+            mod_time = os.path.getmtime(filepath)
+            image_datetime = datetime.fromtimestamp(mod_time, tz=timezone.utc)
+        except Exception as e:
+            print(f"Erro ao obter data de modificação de {filepath}: {e}")
+            # Fallback: usa timestamp atual em UTC
+            image_datetime = datetime.now(timezone.utc)
+    elif image_datetime.tzinfo is None:
+        # Garante que tem timezone UTC se não tiver
+        image_datetime = image_datetime.replace(tzinfo=timezone.utc)
+    
+    return image_datetime
+
 # Função auxiliar para obter o nome da pasta do paciente no formato "{nome} - {cpf}"
 def get_patient_folder_name(cpf):
     """
@@ -410,22 +483,50 @@ def get_patient_folder_name(cpf):
 
 @app.route('/save_image', methods=['POST'])
 def save_image():
-    data = request.get_json()
-    cpf = data.get('cpf')
-    image_data = data.get('image')
-    # Caso não seja fornecido, usa o timestamp atual
-    timestamp = data.get('timestamp', datetime.utcnow().isoformat())
+    try:
+        print("=== SAVE_IMAGE ENDPOINT CHAMADO ===")
+        data = request.get_json()
+        if not data:
+            print("ERRO: Nenhum dado JSON recebido")
+            return jsonify({'error': 'Nenhum dado recebido'}), 400
+        
+        cpf = data.get('cpf')
+        image_data = data.get('image')
+        # Caso não seja fornecido, usa o timestamp atual em UTC
+        timestamp = data.get('timestamp', datetime.now(timezone.utc).isoformat())
 
-    if not cpf or not image_data:
-        return jsonify({'error': 'cpf e image são obrigatórios'}), 400
+        print(f"CPF recebido: {cpf}")
+        print(f"Timestamp recebido: {timestamp}")
+        print(f"Tamanho do image_data: {len(image_data) if image_data else 0}")
 
-    # Obtém o nome da pasta no formato "{nome} - {cpf}"
-    folder_name = get_patient_folder_name(cpf)
-    
-    # Cria uma pasta para o paciente, se não existir
-    patient_folder = os.path.join(BASE_FOLDER, folder_name)
-    if not os.path.exists(patient_folder):
-        os.makedirs(patient_folder)
+        if not cpf or not image_data:
+            print(f"ERRO: CPF ou image_data vazio. CPF: {cpf}, image_data presente: {bool(image_data)}")
+            return jsonify({'error': 'cpf e image são obrigatórios'}), 400
+
+        # Obtém o nome da pasta no formato "{nome} - {cpf}"
+        folder_name = get_patient_folder_name(cpf)
+        print(f"Nome da pasta: {folder_name}")
+        
+        # Cria uma pasta para o paciente, se não existir
+        patient_folder = os.path.join(BASE_FOLDER, folder_name)
+        print(f"Caminho da pasta: {patient_folder}")
+        
+        if not os.path.exists(patient_folder):
+            print(f"Criando pasta: {patient_folder}")
+            try:
+                os.makedirs(patient_folder, exist_ok=True, mode=0o777)
+                # Define permissões: 777 (rwxrwxrwx) - leitura/escrita/execução para todos
+                # Isso garante que o usuário possa criar arquivos mesmo que a pasta seja criada como root
+                os.chmod(patient_folder, 0o777)
+                print(f"Pasta criada com sucesso")
+            except Exception as e:
+                print(f"ERRO ao criar pasta: {e}")
+                return jsonify({'error': f'Erro ao criar pasta: {str(e)}'}), 500
+        
+        # Verifica permissões de escrita
+        if not os.access(patient_folder, os.W_OK):
+            print(f"ERRO: Sem permissão de escrita na pasta: {patient_folder}")
+            return jsonify({'error': 'Sem permissão de escrita na pasta'}), 500
         
         # Se existir uma pasta antiga com apenas o CPF, migra as imagens
         old_folder = os.path.join(BASE_FOLDER, cpf)
@@ -444,56 +545,120 @@ def save_image():
             except Exception as e:
                 print(f"Erro ao migrar pasta antiga: {e}")
 
-    # Remove o cabeçalho (data:image/png;base64,) se existir
-    if "," in image_data:
-        header, encoded = image_data.split(',', 1)
-    else:
-        encoded = image_data
+        # Remove o cabeçalho (data:image/png;base64,) se existir
+        if "," in image_data:
+            header, encoded = image_data.split(',', 1)
+        else:
+            encoded = image_data
 
-    image_bytes = base64.b64decode(encoded)
-    
-    # Salva a imagem com o timestamp como nome de arquivo
-    # Substitui os ":" por "-" para evitar problemas no nome do arquivo
-    safe_timestamp = timestamp.replace(":", "-")
-    filename = f"{safe_timestamp}.png"
-    filepath = os.path.join(patient_folder, filename)
-    with open(filepath, "wb") as f:
-        f.write(image_bytes)
-    
-    # Aqui você pode inserir no banco de dados as informações da imagem, se necessário
-    # Exemplo: db.insert_image(cpf=cpf, filename=filename, timestamp=timestamp)
-
-    return jsonify({'message': 'Imagem salva com sucesso', 'filename': filename}), 200
+        print("Decodificando imagem base64...")
+        try:
+            image_bytes = base64.b64decode(encoded)
+            print(f"Imagem decodificada. Tamanho: {len(image_bytes)} bytes")
+        except Exception as e:
+            print(f"ERRO ao decodificar base64: {e}")
+            return jsonify({'error': f'Erro ao decodificar imagem: {str(e)}'}), 400
+        
+        # Salva a imagem com o timestamp como nome de arquivo
+        # Substitui os ":" por "-" para evitar problemas no nome do arquivo
+        safe_timestamp = timestamp.replace(":", "-")
+        filename = f"{safe_timestamp}.png"
+        filepath = os.path.join(patient_folder, filename)
+        
+        print(f"Salvando arquivo: {filepath}")
+        try:
+            with open(filepath, "wb") as f:
+                f.write(image_bytes)
+            # Define permissões: 666 (rw-rw-rw-) - leitura/escrita para todos (dono, grupo e outros)
+            # Isso garante que o usuário possa escrever mesmo que o arquivo seja criado como root
+            os.chmod(filepath, 0o666)
+            print(f"Arquivo salvo com sucesso: {filepath} (permissões: 666)")
+        except Exception as e:
+            print(f"ERRO ao salvar arquivo: {e}")
+            return jsonify({'error': f'Erro ao salvar arquivo: {str(e)}'}), 500
+        
+        # Verifica se o arquivo foi realmente criado
+        if not os.path.exists(filepath):
+            print(f"ERRO: Arquivo não foi criado: {filepath}")
+            return jsonify({'error': 'Arquivo não foi criado'}), 500
+        
+        print("=== IMAGEM SALVA COM SUCESSO ===")
+        return jsonify({'message': 'Imagem salva com sucesso', 'filename': filename}), 200
+        
+    except Exception as e:
+        import traceback
+        print(f"ERRO GERAL em save_image: {e}")
+        print(traceback.format_exc())
+        return jsonify({'error': f'Erro ao salvar imagem: {str(e)}'}), 500
 
 @app.route('/update_image', methods=['PUT'])
 def update_image():
-    data = request.get_json()
-    cpf = data.get('cpf')
-    image_data = data.get('image')
-    timestamp_iso = data.get('timestamp_iso')  # Timestamp da imagem original a ser atualizada
-
-    if not cpf or not image_data or not timestamp_iso:
-        return jsonify({'error': 'cpf, image e timestamp_iso são obrigatórios'}), 400
-
     try:
+        print("=== UPDATE_IMAGE ENDPOINT CHAMADO ===")
+        data = request.get_json()
+        if not data:
+            print("ERRO: Nenhum dado JSON recebido")
+            return jsonify({'error': 'Nenhum dado recebido'}), 400
+            
+        cpf = data.get('cpf')
+        image_data = data.get('image')
+        timestamp_iso = data.get('timestamp_iso')  # Timestamp da imagem original a ser atualizada
+
+        print(f"CPF: {cpf}, timestamp_iso: {timestamp_iso}")
+        print(f"Tamanho do image_data: {len(image_data) if image_data else 0}")
+
+        if not cpf or not image_data or not timestamp_iso:
+            print(f"ERRO: Dados obrigatórios faltando. CPF: {cpf}, image_data presente: {bool(image_data)}, timestamp_iso: {timestamp_iso}")
+            return jsonify({'error': 'cpf, image e timestamp_iso são obrigatórios'}), 400
+
         # Obtém o nome da pasta no formato "{nome} - {cpf}"
         folder_name = get_patient_folder_name(cpf)
         patient_folder = os.path.join(BASE_FOLDER, folder_name)
+        
+        print(f"Nome da pasta: {folder_name}")
+        print(f"Caminho da pasta: {patient_folder}")
         
         # Se a pasta nova não existir, tenta a pasta antiga (apenas CPF)
         if not os.path.exists(patient_folder):
             old_folder = os.path.join(BASE_FOLDER, cpf)
             if os.path.exists(old_folder):
                 patient_folder = old_folder
+                print(f"Usando pasta antiga: {old_folder}")
             else:
+                print(f"ERRO: Pasta do paciente não encontrada: {patient_folder} nem {old_folder}")
                 return jsonify({'error': 'Pasta do paciente não encontrada'}), 404
 
+        # Verifica permissões de escrita
+        if not os.access(patient_folder, os.W_OK):
+            print(f"ERRO: Sem permissão de escrita na pasta: {patient_folder}")
+            return jsonify({'error': 'Sem permissão de escrita na pasta'}), 500
+
         # Reconstrói o nome do arquivo a partir do timestamp_iso
-        safe_timestamp = timestamp_iso.replace(":", "-")
+        # O timestamp_iso vem no formato "2026-01-03T21:29:34.852Z" 
+        # Precisamos converter para formato de arquivo: "2026-01-03T21-29-34.852Z.png"
+        # Substitui apenas os ":" na parte do tempo por "-"
+        if 'T' in timestamp_iso:
+            date_part, time_part = timestamp_iso.split('T', 1)
+            # Remove o "Z" final se existir, substitui ":" por "-" na parte do tempo, depois adiciona "Z" de volta
+            time_without_z = time_part.rstrip('Z')
+            time_safe = time_without_z.replace(":", "-")
+            safe_timestamp = f"{date_part}T{time_safe}Z" if timestamp_iso.endswith('Z') else f"{date_part}T{time_safe}"
+        else:
+            safe_timestamp = timestamp_iso.replace(":", "-")
+        
         filename = f"{safe_timestamp}.png"
         filepath = os.path.join(patient_folder, filename)
 
+        print(f"Timestamp ISO recebido: {timestamp_iso}")
+        print(f"Timestamp convertido: {safe_timestamp}")
+        print(f"Procurando arquivo: {filepath}")
+        
         if not os.path.exists(filepath):
+            print(f"ERRO: Arquivo não encontrado: {filepath}")
+            # Lista arquivos para debug
+            if os.path.exists(patient_folder):
+                files = os.listdir(patient_folder)
+                print(f"Arquivos disponíveis na pasta: {files}")
             return jsonify({'error': 'Imagem não encontrada'}), 404
 
         # Remove o cabeçalho (data:image/png;base64,) se existir
@@ -502,16 +667,35 @@ def update_image():
         else:
             encoded = image_data
 
-        image_bytes = base64.b64decode(encoded)
+        print("Decodificando imagem base64...")
+        try:
+            image_bytes = base64.b64decode(encoded)
+            print(f"Imagem decodificada. Tamanho: {len(image_bytes)} bytes")
+        except Exception as e:
+            print(f"ERRO ao decodificar base64: {e}")
+            return jsonify({'error': f'Erro ao decodificar imagem: {str(e)}'}), 400
         
+        print(f"Salvando arquivo atualizado: {filepath}")
         # Substitui o arquivo existente
-        with open(filepath, "wb") as f:
-            f.write(image_bytes)
+        try:
+            with open(filepath, "wb") as f:
+                f.write(image_bytes)
+            # Define permissões: 666 (rw-rw-rw-) - leitura/escrita para todos (dono, grupo e outros)
+            # Isso garante que o usuário possa escrever mesmo que o arquivo seja criado como root
+            os.chmod(filepath, 0o666)
+            print(f"Arquivo atualizado com sucesso: {filepath} (permissões: 666)")
+        except Exception as e:
+            print(f"ERRO ao salvar arquivo: {e}")
+            return jsonify({'error': f'Erro ao salvar arquivo: {str(e)}'}), 500
 
+        print(f"=== IMAGEM ATUALIZADA COM SUCESSO: {filename} ===")
         return jsonify({'message': 'Imagem atualizada com sucesso', 'filename': filename}), 200
+        
     except Exception as e:
-        print(f"Erro ao atualizar imagem: {e}")
-        return jsonify({'error': 'Erro ao atualizar imagem'}), 500
+        import traceback
+        print(f"ERRO GERAL em update_image: {e}")
+        print(traceback.format_exc())
+        return jsonify({'error': f'Erro ao atualizar imagem: {str(e)}'}), 500
 
 @app.route('/get_images', methods=['GET'])
 def get_images():
@@ -532,35 +716,70 @@ def get_images():
     images = []
     if os.path.exists(patient_folder):
         for filename in os.listdir(patient_folder):
+            if not filename.lower().endswith(('.png', '.jpg', '.jpeg')):
+                continue
+                
             filepath = os.path.join(patient_folder, filename)
+            
+            # Extrai metadados da imagem (EXIF ou data de modificação)
+            image_datetime_utc = get_image_metadata(filepath)
+            
+            # Garante que o datetime está em UTC (timezone-aware)
+            if image_datetime_utc.tzinfo is None:
+                image_datetime_utc = image_datetime_utc.replace(tzinfo=timezone.utc)
+            
+            # Converte UTC para horário brasileiro para exibição
+            try:
+                if hasattr(BRAZIL_TIMEZONE, 'localize'):
+                    # Para pytz (Python < 3.9)
+                    image_datetime_br = image_datetime_utc.astimezone(BRAZIL_TIMEZONE)
+                else:
+                    # Para zoneinfo (Python >= 3.9)
+                    image_datetime_br = image_datetime_utc.astimezone(BRAZIL_TIMEZONE)
+            except Exception as e:
+                # Fallback: subtrai 3 horas manualmente se conversão falhar
+                print(f"Erro ao converter timezone: {e}")
+                image_datetime_br = image_datetime_utc - timedelta(hours=3)
+            
+            # Extrai o timestamp_iso diretamente do nome do arquivo (sem extensão)
+            # O nome do arquivo já está no formato: "2026-01-03T21-29-34.852Z.png"
+            # Converte para formato ISO: "2026-01-03T21:29:34.852Z" (substitui "-" por ":" no tempo)
+            file_timestamp = filename.rsplit('.', 1)[0]  # Remove extensão (.png, .jpg, etc)
+            # Substitui os hífens no tempo por dois pontos para formato ISO
+            if 'T' in file_timestamp:
+                date_part, time_part = file_timestamp.split('T', 1)
+                # Substitui hífens por dois pontos apenas na parte do tempo
+                time_part_iso = time_part.replace('-', ':', 2)  # Substitui apenas os 2 primeiros hífens (hora:minuto:segundo)
+                timestamp_iso = f"{date_part}T{time_part_iso}"
+            else:
+                # Fallback: usa timestamp gerado a partir dos metadados
+                timestamp_iso = image_datetime_utc.strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z"
+            
+            # Formata timestamp amigável para exibição em horário brasileiro
+            friendly_timestamp = image_datetime_br.strftime("%d/%m/%Y %H:%M:%S")
+            
             with open(filepath, "rb") as f:
                 image_bytes = f.read()
                 encoded = base64.b64encode(image_bytes).decode('utf-8')
-                data_url = f"data:image/png;base64,{encoded}"
                 
-                # Processa o nome do arquivo para extrair o timestamp e formatá-lo de forma amigável
-                # O nome esperado é algo como "2025-02-28T16-26-29.545Z.png"
-                raw = filename.replace(".png", "")
-                try:
-                    # Separa a parte da data e do tempo
-                    date_part, time_part = raw.split("T")
-                    # Substitui somente os dois primeiros hífens da parte do tempo por dois pontos
-                    time_part_fixed = time_part.replace("-", ":", 2)
-                    iso_timestamp = f"{date_part}T{time_part_fixed}"
-                    # Ajusta para um formato ISO compatível com datetime.fromisoformat (substituindo 'Z' por '+00:00')
-                    iso_timestamp_fixed = iso_timestamp.replace("Z", "+00:00")
-                    dt = datetime.fromisoformat(iso_timestamp_fixed)
-                    # Formata a data de forma amigável
-                    friendly_timestamp = dt.strftime("%d/%m/%Y %H:%M:%S")
-                except Exception as e:
-                    # Em caso de erro, retorna o valor bruto
-                    friendly_timestamp = raw
+                # Detecta o tipo MIME da imagem
+                if filename.lower().endswith('.jpg') or filename.lower().endswith('.jpeg'):
+                    mime_type = 'image/jpeg'
+                else:
+                    mime_type = 'image/png'
+                    
+                data_url = f"data:{mime_type};base64,{encoded}"
 
                 images.append({
                     'image': data_url,
                     'timestamp': friendly_timestamp,
-                    'timestamp_iso': raw  # Timestamp original para ordenação
+                    'timestamp_iso': timestamp_iso,  # Timestamp ISO para ordenação (UTC)
+                    'file_datetime': image_datetime_utc.isoformat()  # Data/hora extraída dos metadados (UTC)
                 })
+    
+    # Ordena as imagens por timestamp (mais recente primeiro)
+    images.sort(key=lambda x: x.get('timestamp_iso', ''), reverse=True)
+    
     return jsonify({'images': images}), 200
 
 @app.route('/delete_image', methods=['DELETE'])

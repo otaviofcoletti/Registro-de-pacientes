@@ -2,8 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import styles from './PatientDetails.module.css';
 import Paint from '../components/PaintComponent.jsx';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+import { getApiUrl } from '../config/api.js';
 
 // Função para gerar os números dos dentes de um quadrante específico
 const getTeethByQuadrant = (quadrant) => {
@@ -100,7 +99,7 @@ export function PatientDetails() {
   useEffect(() => {
     const fetchPatientDetails = async () => {
       try {
-        const response = await fetch(`${API_URL}/paciente/${cpf}`);
+        const response = await fetch(`${getApiUrl()}/paciente/${cpf}`);
         if (response.ok) {
           const data = await response.json();
           setPatient(data);
@@ -126,7 +125,7 @@ export function PatientDetails() {
   
   const fetchDescricoesOrcamentos = async () => {
     try {
-      const response = await fetch(`${API_URL}/paciente/${cpf}/orcamentos/descricoes`);
+      const response = await fetch(`${getApiUrl()}/paciente/${cpf}/orcamentos/descricoes`);
       if (response.ok) {
         const data = await response.json();
         setDescricoesOrcamentos(data);
@@ -140,7 +139,7 @@ export function PatientDetails() {
   
   const fetchImages = async () => {
     try {
-      const response = await fetch(`${API_URL}/get_images?cpf=${cpf}`);
+      const response = await fetch(`${getApiUrl()}/get_images?cpf=${cpf}`);
       if (response.ok) {
         const data = await response.json();
         const imagesList = data.images || [];
@@ -263,7 +262,7 @@ export function PatientDetails() {
         face: faceString
       };
       
-      const response = await fetch(`${API_URL}/paciente/${cpf}/anotacoes`, {
+      const response = await fetch(`${getApiUrl()}/paciente/${cpf}/anotacoes`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),
@@ -327,7 +326,7 @@ export function PatientDetails() {
         ? annotation.face.join(', ') 
         : 'Não se aplica';
       
-      const response = await fetch(`${API_URL}/paciente/${cpf}/anotacoes/${annotation.epoch}`, {
+      const response = await fetch(`${getApiUrl()}/paciente/${cpf}/anotacoes/${annotation.epoch}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -417,7 +416,7 @@ export function PatientDetails() {
     
     if (window.confirm(confirmMessage)) {
       try {
-        const response = await fetch(`${API_URL}/pacientes/${cpf}`, {
+        const response = await fetch(`${getApiUrl()}/pacientes/${cpf}`, {
           method: 'DELETE'
         });
         
@@ -440,7 +439,7 @@ export function PatientDetails() {
   
     try {
       const response = await fetch(
-        `http://127.0.0.1:5000/paciente/${cpf}/anotacoes/${annotation.epoch}`,
+        `${getApiUrl()}/paciente/${cpf}/anotacoes/${annotation.epoch}`,
         { method: 'DELETE' }
       );
   
@@ -468,7 +467,7 @@ export function PatientDetails() {
     
     try {
       const response = await fetch(
-        `${API_URL}/delete_image?cpf=${cpf}&timestamp_iso=${encodeURIComponent(image.timestamp_iso)}`,
+        `${getApiUrl()}/delete_image?cpf=${cpf}&timestamp_iso=${encodeURIComponent(image.timestamp_iso)}`,
         { method: 'DELETE' }
       );
       
@@ -527,7 +526,7 @@ export function PatientDetails() {
         <p><strong>Endereço:</strong> {patient.address}</p>
         <p><strong>Convênio:</strong> {patient.convenio}</p>
       </div>
-      <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem' }}>
+      <div className={styles.buttonContainer}>
         <button className={styles.backButton} onClick={() => navigate(`/editar-paciente/${cpf}`)}>Editar Ficha</button>
         <button className={styles.backButton} onClick={() => navigate(`/pagamentos/${cpf}`)}>
           Ver Orçamentos e Pagamentos
@@ -911,7 +910,7 @@ export function PatientDetails() {
           </tbody>
         </table>
       </div>
-      <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
+      <div className={styles.buttonContainerBottom}>
         <button className={styles.backButton} onClick={() => navigate('/pacientes')}>Voltar para Lista de Pacientes</button>
         <button className={styles.backButton} onClick={() => navigate(`/pagamentos/${cpf}`)}>
           Ver Orçamentos e Pagamentos

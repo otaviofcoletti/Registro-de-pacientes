@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import styles from './PatientList.module.css';
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+import { getApiUrl } from '../config/api.js';
 
 // Função para remover acentos e normalizar texto
 const removeAccents = (str) => {
@@ -18,11 +18,17 @@ export function PatientList() {
   useEffect(() => {
     const fetchPatients = async () => {
       try {
-        const response = await fetch(`${API_URL}/pacientes`);
+        const response = await fetch(`${getApiUrl()}/pacientes`);
         if (response.ok) {
           const data = await response.json();
-          setPatients(data);
-          setFilteredPatients(data);
+          // Ordena os pacientes por nome (case insensitive)
+          const sortedData = data.sort((a, b) => {
+            const nameA = removeAccents(a.nome || '').toLowerCase();
+            const nameB = removeAccents(b.nome || '').toLowerCase();
+            return nameA.localeCompare(nameB);
+          });
+          setPatients(sortedData);
+          setFilteredPatients(sortedData);
         } else {
           console.error('Failed to fetch patients');
         }
@@ -57,7 +63,14 @@ export function PatientList() {
       suggestions = patients;
     }
     
-    setFilteredPatients(suggestions);
+    // Garante que os resultados filtrados também estão ordenados por nome
+    const sortedSuggestions = suggestions.sort((a, b) => {
+      const nameA = removeAccents(a.nome || '').toLowerCase();
+      const nameB = removeAccents(b.nome || '').toLowerCase();
+      return nameA.localeCompare(nameB);
+    });
+    
+    setFilteredPatients(sortedSuggestions);
   };
 
   const handlePatientClick = (cpf) => {

@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import styles from './CadastroPaciente.module.css';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+import { getApiUrl } from '../config/api.js';
 
 
 
@@ -24,7 +23,7 @@ const CadastroPaciente = () => {
         e.preventDefault();
 
         try {
-            const response = await fetch(`${API_URL}/pacientes`, {
+            const response = await fetch(`${getApiUrl()}/pacientes`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

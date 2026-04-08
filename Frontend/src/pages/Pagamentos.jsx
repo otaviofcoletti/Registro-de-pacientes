@@ -1,11 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import styles from './Pagamentos.module.css';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+import { getApiUrl } from '../config/api.js';
 
 // Debug: mostra qual URL está sendo usada
-console.log('[DEBUG] API_URL configurada:', API_URL);
+console.log('[DEBUG] API_URL configurada:', getApiUrl());
 console.log('[DEBUG] VITE_API_URL do .env:', import.meta.env.VITE_API_URL);
 console.log('[DEBUG] Todas as variáveis de ambiente:', import.meta.env);
 
@@ -27,7 +26,7 @@ export function Pagamentos() {
 
   const fetchOrcamentos = async () => {
     try {
-      const url = `${API_URL}/paciente/${cpf}/orcamentos`;
+      const url = `${getApiUrl()}/paciente/${cpf}/orcamentos`;
       console.log('[DEBUG Pagamentos] Fazendo requisição GET para:', url);
       const response = await fetch(url);
       if (response.ok) {
@@ -93,7 +92,7 @@ export function Pagamentos() {
     }
 
     try {
-      const response = await fetch(`${API_URL}/paciente/${cpf}/orcamentos`, {
+      const response = await fetch(`${getApiUrl()}/paciente/${cpf}/orcamentos`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -129,7 +128,7 @@ export function Pagamentos() {
     }
 
     try {
-      const response = await fetch(`${API_URL}/orcamentos/${orcamentoId}/itens`, {
+      const response = await fetch(`${getApiUrl()}/orcamentos/${orcamentoId}/itens`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -190,7 +189,7 @@ export function Pagamentos() {
 
     try {
       const response = await fetch(
-        `${API_URL}/orcamentos/${orcamento.id}/itens/${item.id}`,
+        `${getApiUrl()}/orcamentos/${orcamento.id}/itens/${item.id}`,
         {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
@@ -237,7 +236,7 @@ export function Pagamentos() {
 
     try {
       const response = await fetch(
-        `${API_URL}/orcamentos/${orcamento.id}/itens/${item.id}`,
+        `${getApiUrl()}/orcamentos/${orcamento.id}/itens/${item.id}`,
         { method: 'DELETE' }
       );
 
@@ -270,7 +269,7 @@ export function Pagamentos() {
 
     try {
       const response = await fetch(
-        `${API_URL}/paciente/${cpf}/orcamentos/${orcamento.id}`,
+        `${getApiUrl()}/paciente/${cpf}/orcamentos/${orcamento.id}`,
         {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
@@ -308,7 +307,7 @@ export function Pagamentos() {
 
     try {
       const response = await fetch(
-        `${API_URL}/paciente/${cpf}/orcamentos/${orcamento.id}`,
+        `${getApiUrl()}/paciente/${cpf}/orcamentos/${orcamento.id}`,
         { method: 'DELETE' }
       );
 
@@ -346,7 +345,7 @@ export function Pagamentos() {
       return;
     }
     try {
-      const response = await fetch(`${API_URL}/orcamentos/${orcamentoId}/pagamentos`, {
+      const response = await fetch(`${getApiUrl()}/orcamentos/${orcamentoId}/pagamentos`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -399,7 +398,7 @@ export function Pagamentos() {
 
     try {
       const response = await fetch(
-        `${API_URL}/orcamentos/${orcamento.id}/pagamentos/${pagamento.id}`,
+        `${getApiUrl()}/orcamentos/${orcamento.id}/pagamentos/${pagamento.id}`,
         {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
@@ -446,7 +445,7 @@ export function Pagamentos() {
 
     try {
       const response = await fetch(
-        `${API_URL}/orcamentos/${orcamento.id}/pagamentos/${pagamento.id}`,
+        `${getApiUrl()}/orcamentos/${orcamento.id}/pagamentos/${pagamento.id}`,
         { method: 'DELETE' }
       );
 

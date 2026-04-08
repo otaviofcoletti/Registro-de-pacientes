@@ -46,4 +46,17 @@ body, input, textarea, button {
     font-size: 1rem;
 }
 
+/* Media queries para responsividade mobile */
+@media (max-width: 768px) {
+    body, input, textarea, button {
+        font-size: 0.9rem;
+    }
+}
+
+@media (max-width: 480px) {
+    body, input, textarea, button {
+        font-size: 0.85rem;
+    }
+}
+
 

@@ -1,11 +1,10 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import styles from './PaintComponent.module.css';
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+import { getApiUrl } from '../config/api.js';
 
 // Debug: mostra qual URL está sendo usada
 if (typeof window !== 'undefined') {
-  console.log('[DEBUG PaintComponent] API_URL:', API_URL);
-  console.log('[DEBUG PaintComponent] VITE_API_URL:', import.meta.env.VITE_API_URL);
+  console.log('[DEBUG PaintComponent] API_URL:', getApiUrl());
 }
 
 const Paint = ({ cpf, selectedImageIndex, onImagesChange, imagesCount }) => {
@@ -114,7 +113,7 @@ const Paint = ({ cpf, selectedImageIndex, onImagesChange, imagesCount }) => {
   const loadImages = useCallback(() => {
     if (cpf) {
       // Recupera imagens do backend
-      fetch(`${API_URL}/get_images?cpf=${cpf}`)
+      fetch(`${getApiUrl()}/get_images?cpf=${cpf}`)
         .then(response => response.json())
         .then(data => {
           if (data && data.images && data.images.length > 0) {
@@ -571,7 +570,7 @@ const handleEditSaveToggle = () => {
     // Se estamos editando uma imagem existente, atualiza ela
     if (editingImageTimestamp && savedImages.length > 0) {
       // Atualiza a imagem existente
-      fetch(`${API_URL}/update_image`, {
+      fetch(`${getApiUrl()}/update_image`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json'
@@ -582,14 +581,24 @@ const handleEditSaveToggle = () => {
           timestamp_iso: editingImageTimestamp 
         })
       })
-        .then(response => response.json())
+        .then(response => {
+          if (!response.ok) {
+            return response.json().then(err => {
+              throw new Error(err.error || `Erro HTTP: ${response.status}`);
+            });
+          }
+          return response.json();
+        })
         .then(data => {
+          if (data.error) {
+            throw new Error(data.error);
+          }
           console.log("Imagem atualizada no backend com sucesso:", data);
           
           // Aguarda um pouco para garantir que o arquivo foi escrito no disco
           setTimeout(() => {
             // Busca as imagens atualizadas do backend
-            fetch(`${API_URL}/get_images?cpf=${cpf}`)
+            fetch(`${getApiUrl()}/get_images?cpf=${cpf}`)
               .then(response => response.json())
               .then(backendData => {
                 if (backendData && backendData.images && backendData.images.length > 0) {
@@ -686,21 +695,31 @@ const handleEditSaveToggle = () => {
     } else {
       // Cria uma nova imagem
       const timestamp = new Date().toISOString();
-      fetch(`${API_URL}/save_image`, {
+      fetch(`${getApiUrl()}/save_image`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({ cpf, image: imageData, timestamp })
       })
-        .then(response => response.json())
+        .then(response => {
+          if (!response.ok) {
+            return response.json().then(err => {
+              throw new Error(err.error || `Erro HTTP: ${response.status}`);
+            });
+          }
+          return response.json();
+        })
         .then(data => {
+          if (data.error) {
+            throw new Error(data.error);
+          }
           console.log("Imagem salva no backend com sucesso:", data);
           
           // Aguarda um pouco para garantir que o arquivo foi escrito no disco
           setTimeout(() => {
             // Busca as imagens atualizadas do backend
-            fetch(`${API_URL}/get_images?cpf=${cpf}`)
+            fetch(`${getApiUrl()}/get_images?cpf=${cpf}`)
               .then(response => response.json())
               .then(backendData => {
                 if (backendData && backendData.images && backendData.images.length > 0) {

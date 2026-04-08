@@ -1,0 +1,100 @@
+# services:
+#   postgres:
+#     image: postgres:16
+#     container_name: clinica_database
+#     ports:
+#       - "0.0.0.0:5432:5432"  # Exposto em todas as interfaces de rede
+#     environment:
+#       POSTGRES_USER: admin
+#       POSTGRES_PASSWORD: admin123
+#       POSTGRES_DB: clinica
+#     volumes:
+#       - postgres_data:/var/lib/postgresql/data
+#       - ./Database/init_novo.sql:/docker-entrypoint-initdb.d/init.sql
+#     restart: always
+
+#   backend:
+#     build: ./Backend
+#     container_name: clinica_backend
+#     depends_on:
+#       - postgres
+#     environment:
+#       DB_NAME: clinica
+#       DB_USER: admin
+#       DB_PASSWORD: admin123
+#       DB_HOST: postgres
+#       DB_PORT: 5432
+#     ports:
+#       - "192.168.68.116:5000:5000"  # Exposto no IP específico da rede
+#     restart: always
+#     volumes:
+#       - ./patient_images:/app/patient_images
+
+#   frontend:
+#     build:
+#       context: ./Frontend
+#       args:
+#         VITE_API_URL: http://localhost:5000
+#     container_name: clinica_frontend
+#     depends_on:
+#       - backend
+#     ports:
+#       - "192.168.68.116:5173:5173"  # Exposto no IP específico da rede
+#     restart: always
+
+# volumes:
+#   postgres_data:
+#     driver: local
+
+  
+services:
+  postgres:
+    image: postgres:16
+    container_name: clinica_database
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin123
+      POSTGRES_DB: clinica
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./Database/init_novo.sql:/docker-entrypoint-initdb.d/init.sql
+    restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d clinica"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build: ./Backend
+    container_name: clinica_backend
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DB_NAME: clinica
+      DB_USER: admin
+      DB_PASSWORD: admin123
+      DB_HOST: postgres
+      DB_PORT: 5432
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./patient_images:/app/patient_images
+    restart: always
+
+  frontend:
+    build:
+      context: ./Frontend
+      args:
+        VITE_API_URL: http://localhost:5000
+    container_name: clinica_frontend
+    depends_on:
+      - backend
+    ports:
+      - "5173:5173"
+    restart: always
+
+volumes:
+  postgres_data:
+    driver: local

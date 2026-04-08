@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import styles from './CadastroPaciente.module.css';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+import { getApiUrl } from '../config/api.js';
 
 const EditPatient = () => {
     const { cpf } = useParams();
@@ -20,7 +19,7 @@ const EditPatient = () => {
     useEffect(() => {
         const fetchPatientDetails = async () => {
             try {
-                const response = await fetch(`${API_URL}/paciente/${cpf}`);
+                const response = await fetch(`${getApiUrl()}/paciente/${cpf}`);
                 if (response.ok) {
                     const data = await response.json();
                     setPatient(data);
@@ -52,7 +51,7 @@ const EditPatient = () => {
         e.preventDefault();
 
         try {
-            const response = await fetch(`${API_URL}/pacientes/${cpf}`, {
+            const response = await fetch(`${getApiUrl()}/pacientes/${cpf}`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
