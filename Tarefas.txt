@@ -1,0 +1,9 @@
+2. Ajustar docker compose e mudar o ip para um endereço
+
+3. Criar coisas pela agenda
+
+4. Arrumar problema do CPF, criar um id não semantico, criar transição.
+
+5. Criar uma action para automatizar subida de versão
+
+6. Criar uma branch de desenvolvimento e uma de prod e criar um ambiente de homologação
