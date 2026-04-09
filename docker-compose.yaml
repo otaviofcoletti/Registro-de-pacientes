@@ -46,11 +46,14 @@
 #   postgres_data:
 #     driver: local
 
-  
+# Nome do projeto Compose (evita que outro clone na mesma máquina, com a mesma pasta,
+# partilhe o mesmo projeto e um `docker compose up` derrube a stack antiga).
+name: clinica-dev
+
 services:
   postgres:
     image: postgres:16
-    container_name: clinica_database
+    container_name: clinica_database_dev
     environment:
       POSTGRES_USER: admin
       POSTGRES_PASSWORD: admin123
@@ -67,7 +70,7 @@ services:
 
   backend:
     build: ./Backend
-    container_name: clinica_backend
+    container_name: clinica_backend_dev
     depends_on:
       postgres:
         condition: service_healthy
@@ -78,7 +81,7 @@ services:
       DB_HOST: postgres
       DB_PORT: 5432
     ports:
-      - "5000:5000"
+      - "5001:5000"
     volumes:
       - ./patient_images:/app/patient_images
     restart: always
@@ -87,14 +90,16 @@ services:
     build:
       context: ./Frontend
       args:
-        VITE_API_URL: http://localhost:5000
-    container_name: clinica_frontend
+        VITE_API_URL: http://localhost:5001
+    container_name: clinica_frontend_dev
     depends_on:
       - backend
     ports:
-      - "5173:5173"
+      - "5174:5173"
     restart: always
 
+# Nome explícito evita partilhar dados com outro clone/produção (Compose usa o nome da pasta por defeito).
 volumes:
   postgres_data:
+    name: clinica_postgres_data_dev
     driver: local

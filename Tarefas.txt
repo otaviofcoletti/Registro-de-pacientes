@@ -1,3 +1,5 @@
+1. Criar arquivos de .env para guardar infos de portas e outras coisas
+
 2. Ajustar docker compose e mudar o ip para um endereço
 
 3. Criar coisas pela agenda
@@ -6,4 +8,7 @@
 
 5. Criar uma action para automatizar subida de versão
 
-6. Criar uma branch de desenvolvimento e uma de prod e criar um ambiente de homologação
+6. Criar rotina de backup de banco
+
+
+
